@@ -4,6 +4,12 @@
 
 **English** · [简体中文](#chinese)
 
+**[Download Depthline v0.8.4 for Mac (.dmg)](https://github.com/FourthBeam/Depthline/releases/download/v0.8.4/Depthline-v0.8.4-macOS-arm64.dmg)** · Requires an Apple Silicon Mac running macOS 13 or later.
+
+Open the downloaded DMG, drag **Depthline.app** into **Applications**, then open the game from Applications. No build tools or compilation are needed.
+
+This build uses an ad hoc signature and hasn’t been notarized by Apple. If macOS says it can’t verify the developer on first launch, see [Apple’s guide to opening downloaded apps](https://support.apple.com/en-us/102445).
+
 Depthline is a first-person defense game for Apple Silicon Macs. Hold your ground at a fixed gun emplacement: use the machine gun against infantry, the cannon against armor, and missiles against aircraft. Watch for supply drops to replenish your ammunition. Version **0.8.4** includes three sectors—Training, Coast, and Hills—and supports 12 interface languages, including English, Simplified Chinese, and Traditional Chinese.
 
 ## Gameplay screenshots
@@ -16,7 +22,7 @@ Depthline is a first-person defense game for Apple Silicon Macs. Hold your groun
 | --- | --- |
 | [![Floodlit ground in front of the gun position, with hills silhouetted at night](docs/screenshots/hills-night.jpg)](docs/screenshots/hills-night.jpg) | [![Training instructions beside the gunsight, with the target helicopter above the crosshairs](docs/screenshots/training.jpg)](docs/screenshots/training.jpg) |
 
-## Build and launch
+## Build from source
 
 You need an Apple Silicon Mac running macOS 13 or later, Python 3, and Xcode Command Line Tools with a Swift compiler that supports the project sources. The game uses Apple's AppKit, SceneKit, and Metal frameworks. To install the command line tools for the first time, run `xcode-select --install`.
 
@@ -70,6 +76,12 @@ The [tools directory](tools/) contains the generation scripts. The [art asset ma
 
 # 纵深防线 · Depthline
 
+**[下载《纵深防线》v0.8.4 Mac 版（DMG）](https://github.com/FourthBeam/Depthline/releases/download/v0.8.4/Depthline-v0.8.4-macOS-arm64.dmg)** · 适用于搭载 Apple 芯片、运行 macOS 13 或更高版本的 Mac。
+
+打开下载的 DMG，把 **Depthline.app** 拖入「应用程序」文件夹，再从中打开游戏。无需安装开发工具或自行编译。
+
+此版本使用本机临时签名，未经 Apple 公证。如果首次打开时 macOS 提示无法验证开发者，请参阅 [Apple 的说明](https://support.apple.com/zh-cn/102445)。
+
 《纵深防线》是一款面向 Apple Silicon Mac 的第一人称定点防御游戏。你在固定炮位上守住阵地，用机枪拦截步兵、火炮压制装甲、导弹对付空中目标，并通过空投补充弹药。当前版本为 **0.8.4**，包含教学、海岸和丘陵三个战区，支持简体中文、繁体中文、英语等 12 种界面语言。
 
 ## 实机画面
@@ -82,7 +94,7 @@ The [tools directory](tools/) contains the generation scripts. The [art asset ma
 | --- | --- |
 | [![夜色中的丘陵和阵地前方的照明区](docs/screenshots/hills-night.jpg)](docs/screenshots/hills-night.jpg) | [![教学任务提示和准星上方的直升机靶机](docs/screenshots/training.jpg)](docs/screenshots/training.jpg) |
 
-## 构建与启动
+## 从源码构建
 
 需要 Apple Silicon Mac、macOS 13 或更高版本、支持当前 Swift 源码的 Xcode 命令行工具，以及 Python 3。游戏使用系统的 AppKit、SceneKit 和 Metal。首次安装开发工具可运行 `xcode-select --install`。
 
