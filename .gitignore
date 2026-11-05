@@ -1,0 +1,27 @@
+# 游戏与 Swift 构建产物、本地验证报告
+/build/
+/DerivedData/
+/.build/
+*.dSYM/
+
+# 可由项目脚本重新生成的场景及音频校验报告
+/original-assets/scenes/
+/original-assets/audio/validation.json
+
+# 放到项目里调试的玩家进度与损坏备份
+campaigns.json
+campaigns.corrupt-*.json
+
+# macOS、Xcode 及 Python 的本机文件
+.DS_Store
+._*
+xcuserdata/
+*.xcuserstate
+__pycache__/
+*.py[cod]
+.venv/
+
+# 本地环境配置，可提交示例文件
+.env
+.env.*
+!.env.example

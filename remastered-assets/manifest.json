@@ -1,0 +1,127 @@
+{
+  "schemaVersion": 1,
+  "generator": "built-in image_gen",
+  "promptFile": "generation-prompts.json",
+  "assets": [
+    {
+      "file": "sand.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 4120689,
+      "sha256": "80de338bca2345327c2235ba4ead4bedf2c0390ff788b6e46efe39e65837f8f7"
+    },
+    {
+      "file": "grass.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 4325476,
+      "sha256": "bc29559c5babb9d6816ef9d1cb1c378e86e1f5bb46cb64e2f912433f024c9204"
+    },
+    {
+      "file": "rock.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 4101800,
+      "sha256": "1a23b8bac6bc88bdfbb17a6bc276dbbb0e6a1b8a889435a82fbd49297770c170"
+    },
+    {
+      "file": "ocean.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2545589,
+      "sha256": "9bd5da033774d2ca2ba327d274e407dad4207c2f2b1a176a4debf1fb71a75464"
+    },
+    {
+      "file": "sky-day.png",
+      "width": 1774,
+      "height": 887,
+      "bytes": 1836846,
+      "sha256": "a86d6862390889c9d8112a686170e3a522e24dac482da6a04b1f0031da7193f9"
+    },
+    {
+      "file": "sky-night.png",
+      "width": 1774,
+      "height": 887,
+      "bytes": 1745345,
+      "sha256": "e23d26c5dd54c1f7570400397eca27713eac876f5a9e578c12218c258e78ef44"
+    },
+    {
+      "file": "explosion-atlas.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2271486,
+      "sha256": "3d46d707b1d634a4da9ddade091231d0151b38634b7de12f3a2278d16037a57b",
+      "grid": [
+        4,
+        4
+      ],
+      "alpha": "RGBA; small low-opacity edge halos require normal renderer cell-edge fade/inset to prevent atlas bleed"
+    },
+    {
+      "file": "smoke-atlas.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1384537,
+      "sha256": "5c7cefd7aebcd529ff38bd33eba496c1f51c8bc3c62e6b5305550dc885700c4e",
+      "grid": [
+        4,
+        4
+      ],
+      "alpha": "RGBA; small low-opacity edge halos require normal renderer cell-edge fade/inset to prevent atlas bleed"
+    },
+    {
+      "file": "muzzle-atlas.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 1427053,
+      "sha256": "aee34423aaadd1e0539f4a08bb99e2aa830e4a455deb02634e1dc2d0689fd1a1",
+      "grid": [
+        2,
+        2
+      ],
+      "alpha": "RGBA; small low-opacity edge halos require normal renderer cell-edge fade/inset to prevent atlas bleed"
+    },
+    {
+      "file": "menu-2000.png",
+      "width": 1774,
+      "height": 887,
+      "bytes": 2533980,
+      "sha256": "fac8c5eb9cbbc3687259a4ce9f42409dbd0ed583975d93f99b23bbc2f2dc51f4",
+      "usage": "Menu artwork, not gameplay screenshot"
+    },
+    {
+      "file": "menu-2002.png",
+      "width": 1774,
+      "height": 887,
+      "bytes": 2205649,
+      "sha256": "d52fe3e6e34e688da266976d2a68769e539df676c6696e592c2ab267ce3089a4",
+      "usage": "Menu artwork, not gameplay screenshot"
+    },
+    {
+      "file": "menu-training.png",
+      "width": 1536,
+      "height": 1024,
+      "bytes": 2453093,
+      "sha256": "12266e5458a27a66e00b1ce5089b8bc728b51d95e0e63c0c9be985c28597cbe3",
+      "usage": "Training sector selection card and briefing background"
+    },
+    {
+      "file": "depthline-icon.png",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 2254021,
+      "sha256": "4a8d7905d2950223449fe741a241d23d13a7f6cee166ef99a994fdeb8f4b71cc",
+      "usage": "Source artwork for the macOS application icon",
+      "prompt": "A tactile gold twin-barrel coastal gun and turquoise wave inlay on a deep teal rounded enamel tile. Center the mark, keep it legible at 32 px, omit text and use transparency outside the tile."
+    }
+  ],
+  "usage": "Modern HD remaster material and effect assets. Original source gameplay data remains independent.",
+  "resolutionNote": "Backend returned 1254 square maps and a 1774x887 panorama. Requested prompt dimensions are not the delivered dimensions. 4K support refers to direct 3840x2160 game rendering with tiled surface detail and resolution-independent HUD, not a claim that every source bitmap is 4K.",
+  "validation": "Each generated image visually inspected. Texture seams and rendered material appearance must also be checked in the actual Metal scene.",
+  "promptFiles": [
+    "generation-prompts.json",
+    "generation-prompt-night.txt",
+    "effects-generation-prompts.json",
+    "menu-generation-prompts.json"
+  ]
+}
