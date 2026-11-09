@@ -2,9 +2,34 @@ import AppKit
 import SceneKit
 
 extension Game {
+    var infantryPositioningField: DepthlineInfantryPositioning.Field? {
+        guard assets.isDepthline, let cover = emplacementCover else { return nil }
+        let eye = camera.simdWorldPosition
+        let pitchRange: ClosedRange<Float> = version == .beach2000 ? -45...88 : -25...80
+        return .init(ground: { [assets] x, z in
+            Double(assets.pointHeight(x: CGFloat(x) * 0.01, z: CGFloat(z) * 0.01)) * 100
+        }, openShot: { foot in
+            let flat = SIMD2(foot.x, foot.z)
+            let outward = flat / max(1, simd_length(flat))
+            let rifle = foot + SIMD3(-outward.x * 20, 80, -outward.y * 20)
+            let chest = SIMD3<Float>(foot * 0.01) + SIMD3(0, 0.38, 0)
+            let delta = chest - eye
+            let pitch = atan2(delta.y, hypot(delta.x, delta.z)) * (180 / Float.pi)
+            guard pitchRange.contains(pitch), self.infantryObstruction(from: SIMD3<Float>(rifle * 0.01), to: eye) == nil else { return false }
+            // A prone soldier must also be reachable from the offset twin
+            // mount when turned toward him, regardless of today's camera yaw.
+            let right = SIMD3<Float>(Float(-outward.y), 0, Float(outward.x))
+            let mount = eye - right * 0.78 - SIMD3(0, 0.38, 0)
+            return self.infantryObstruction(from: mount, to: chest) == nil
+        }, clearSegment: { from, to in
+            cover.firstHit(from: SIMD3<Float>(from * 0.01), to: SIMD3<Float>(to * 0.01)) == nil
+        })
+    }
+
     /// FUN_004051c8 visits whole model ranges, not append/activation order.
     func updateOriginal2002AI() {
         infantryLandedThisTick.removeAll(keepingCapacity: true)
+        let infantryField = infantryPositioningField
         OriginalTickOrder.run(gameID: "2002") { phase in
             switch phase {
             case .groundAvoidance:
@@ -41,7 +66,7 @@ extension Game {
                     // A chute landing already executed infantry case1 this tick;
                     // case2 begins on the next one. APC/CH53 cargo still updates now.
                     if phase == .infantry && infantryLandedThisTick.contains(enemy.slot + 358) { return }
-                    updateEnemyAI(enemy, deferSharedPhases: true)
+                    updateEnemyAI(enemy, deferSharedPhases: true, infantryField: infantryField)
                 }
             }
         }
@@ -111,11 +136,12 @@ extension Game {
         pendingEnemyEmitters.removeAll(keepingCapacity: true)
         pendingBomberDrops.removeAll(keepingCapacity: true)
     }
-    func updateEnemyAI(_ enemy: Enemy, deferSharedPhases: Bool) {
+    func updateEnemyAI(_ enemy: Enemy, deferSharedPhases: Bool, deathsOnly: Bool = false,
+                       infantryField: DepthlineInfantryPositioning.Field? = nil) {
         enemy.age += Self.logicalStep
         if enemy.aggregateBoatSlot != nil || enemy.aggregateVehicleID != nil || enemy.aggregateSoldierSlot != nil || enemy.aggregateAircraftID != nil {return}
         if let ai=enemy.infantryAI {
-            let update=ai.tick(terrainHeight:{[assets] x,z in Double(assets.pointHeight(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100},cameraYawDegrees:Double(camera.eulerAngles.y*180 / .pi),cameraPitchDegrees:Double(camera.eulerAngles.x*180 / .pi),random:{self.random.next()})
+            let update=ai.tick(terrainHeight:{[assets] x,z in Double(assets.pointHeight(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100},cameraYawDegrees:Double(camera.eulerAngles.y*180 / .pi),cameraPitchDegrees:Double(camera.eulerAngles.x*180 / .pi),random:{self.random.next()},infantryField:deathsOnly ? nil : infantryField,slot:enemy.slot)
             let p=update.position;enemy.node.position=SCNVector3(p.x*0.01,p.y*0.01,p.z*0.01);enemy.aiState=update.state
             enemy.node.isHidden = ai.apcExit?.isVisible == false
             if !enemy.node.isHidden { enemy.boardingAPC = nil }
@@ -130,10 +156,11 @@ extension Game {
             for event in update.events {
                 switch event {
                 case .rifleFlash(let origin,let damage):
-                    combat.health=max(0,combat.health-damage);playSound("Rifle");effects.emit(.muzzleFlash,at:origin,scale:.init(repeating:0.25))
-                    if damage>0 {playOriginalPlayerBulletHitSound()}
+                    handleInfantryRifle(from: origin, damage: damage, voice: nil)
                 case .grenade(let origin,let velocity):pendingOrdnance.append((.init(version:.beach2002,kind:.grenade,position:origin,velocity:velocity),"GRENADES",nil))
-                case .forceRemoved(let amount):campaign?.resolveForce(sourceIndex:enemy.sourceIndex,amount:amount)
+                case .forceRemoved(let amount):
+                    if deathsOnly { continue }
+                    campaign?.resolveForce(sourceIndex:enemy.sourceIndex,amount:amount)
                 case .parachuteReleased:break
                 }
             }
@@ -179,8 +206,11 @@ extension Game {
                         burning.noteCrash(type:enemy.type,objectID:id,position:p);playOriginalCrashSound(at:p)
                         emitOriginalCrashFragments(type:enemy.type,objectID:id,position:p,rotationDegrees:r)
                     }
-                    campaign?.resolveForce(sourceIndex:enemy.sourceIndex,amount:force);combat.health=max(0,combat.health-damage)
-                    campaign?.enemyRemoved(sourceIndex:enemy.sourceIndex,forceRemoved:0)
+                    if !deathsOnly {
+                        campaign?.resolveForce(sourceIndex:enemy.sourceIndex,amount:force)
+                        combat.health=max(0,combat.health-damage)
+                        campaign?.enemyRemoved(sourceIndex:enemy.sourceIndex,forceRemoved:0)
+                    }
                     enemy.node.removeFromParentNode();enemies.removeAll {$0===enemy};if crashed {explode(enemy.node.position)}
                     enemy.deferredDeath=nil
                 }

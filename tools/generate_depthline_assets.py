@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Author Depthline's procedural campaign assets without reading any legacy asset.
+"""Build Depthline's field assets from the inputs bundled in this repository.
 
 Numeric node IDs are an internal adapter contract with the existing simulation.
-All vertices, hit volumes, terrain and mission declarations below are newly authored.
+Enemy schedules are numeric transcriptions of the Beach Head 2000 and 2002 missions.
 """
 import hashlib, json, math, struct, zlib
 from bisect import bisect_right
@@ -198,35 +198,70 @@ def collisions(coast):
     objects.append({'name':'Parachute','parts':parts})
     return {'authorship':'Depthline procedural convex volumes, 2026-11-05','objects':objects}
 
+def coast_levels():
+    """Expand the playable Beach Head 2000 Level_01–60 slot declarations.
+
+    Each range stores [first slot, last slot inclusive, Visible, Delay ticks, Revive].
+    The source rewrites C130 visibility, so the last value wins. The bare Visible
+    on level 14 APC slot 1 retains the previous scanned value (0) in the loader.
+    """
+    missions = json.loads((ROOT / 'tools' / 'coast_missions.json').read_text())
+    output = []
+    for mission in missions:
+        level = mission['number']
+        objects = []
+        for unit, ranges in mission['slots'].items():
+            for first, last, visible, delay, revive in ranges:
+                for slot in range(first, last + 1):
+                    obj = {'type': unit, 'slot': slot, 'visible': visible, 'delay': delay,
+                           'revive': revive, 'direction': 'North'}
+                    if unit == 'BARGE':
+                        obj['cargoFamily'] = 'infantry' if slot < 6 else 'vehicle'
+                    objects.append(obj)
+
+        output.append({
+            'number': level, 'title': f'潮口守备 {level:02}',
+            'ammo': mission['ammo'], 'time': mission['time'],
+            'artillery': mission['artillery'], 'flags': [],
+            'aggression': mission['aggression'], 'objects': objects,
+        })
+    return output
+
+
 def levels(coast):
-    output=[]
-    for level in range(1,61 if coast else 101):
-        tier=(level-1)//6; wave=[]
-        if coast:
-            for slot in range(min(6,2+tier//2)):
-                wave.append({'type':'BARGE','slot':slot,'cargoFamily':'infantry','direction':'North','visible':1 if slot<2 else 0,'delay':180+slot*110,'revive':0 if slot<2 else 1})
-            for index in range(min(3,tier//2)):
-                tank=index%2==0;slot=index//2;boat=(6 if tank else 9)+slot;delay=480+index*150
-                wave.extend([{'type':'BARGE','slot':boat,'cargoFamily':'vehicle','direction':'North','visible':0,'delay':delay,'revive':1}, {'type':'TANK' if tank else 'APC1','slot':slot,'visible':0,'delay':delay,'revive':1}])
-            for slot in range(min(5,1+tier)):
-                wave.append({'type':'COBRA' if slot%2==0 else 'JET','slot':slot,'direction':'North','visible':0,'delay':450+slot*230,'revive':1})
-            wave.append({'type':'C130','slot':0,'visible':0,'delay':240,'revive':1})
-            output.append({'number':level,'title':f'潮口守备 {level:02}','ammo':[300+tier*80,8+tier*2,3+tier], 'aggression':[min(8,2+tier)]*4,'time':140+tier*12,'artillery':1 if tier>0 else 0,'flags':[],'objects':wave})
-        else:
-            direction=['South','East','West','North'][(level-1)%4]
-            for slot in range(2+min(2,tier//2)):
-                wave.append({'type':'APC1','slot':slot,'delay':70+slot*95,'direction':direction})
-            for slot in range(min(6,1+tier)):
-                wave.append({'type':'COBRA','slot':slot,'delay':350+slot*160,'direction':direction})
-            for slot in range(min(8,tier)):
-                wave.append({'type':'TANK','slot':slot,'delay':600+slot*120,'direction':direction})
-            if tier>1:wave.append({'type':'CH53','slot':0,'delay':850,'direction':direction})
-            if tier>2:wave.append({'type':'JET','slot':0,'delay':420,'direction':direction})
-            if tier>3:wave.append({'type':'BOMBER','slot':0,'delay':1100,'direction':direction})
-            if level>=3:wave.append({'type':'C130','slot':0,'delay':240,'direction':direction,'passes':1,'hdrop':1,'adrop':2,'pdrop':1,'mdrop':1,'troops1':2,'troops2':0})
-            night=level%5==0
-            flags=['Crosshair','AltGun' if level%3 else 'AltGun2']+(['Spotlight'] if night else ['Daytime'])
-            output.append({'number':level,'title':f'丘陵屏障 {level:02}','ammo':[460+tier*80,12+tier,6+tier,8 if night else 0],'aggression':[min(10,2+tier)]*4,'flags':flags,'objects':wave,'groupDirections':{name:direction for name in ['APC','TANK','COBRA','CH53','JET','BOMBER','C130']}})
+    if coast:
+        return coast_levels()
+    missions = json.loads((ROOT / 'tools' / 'hills_missions.json').read_text())
+    output = []
+    for mission in missions:
+        level = mission['number']
+        directions = mission['directions']
+        objects = []
+        # A null delay means visible on entry. Explicit Delay 0 stays hidden.
+        for unit, delays in mission['waves'].items():
+            for slot, delay in enumerate(delays):
+                obj = {'type': unit, 'slot': slot}
+                if delay is not None:
+                    obj['delay'] = delay
+                objects.append(obj)
+        for slot, plane in enumerate(mission['C130']):
+            objects.append({'type': 'C130', 'slot': slot, **plane})
+        for obj in objects:
+            family = 'APC' if obj['type'].startswith('APC') else obj['type']
+            if family in directions:
+                obj['direction'] = directions[family]
+        lighting = mission['lighting']
+        flags = mission['playerFlags'].copy()
+        if lighting == 'day':
+            flags.append('Daytime')
+        elif lighting == 'spotlight':
+            flags.append('Spotlight')
+        output.append({
+            'number': level, 'title': f'丘陵屏障 {level:02}',
+            'ammo': mission['ammo'],
+            'flags': flags, 'aggression': mission['aggression'],
+            'objects': objects, 'groupDirections': directions,
+        })
     return output
 
 def main():
@@ -278,8 +313,8 @@ def main():
         write_json(dest/'fragments.json',{'gameID':game_id,'authorship':'Original procedural plate fragments','objects':fragments})
         if coast:
             write_json(dest/'wrecks.json',{'gameID':game_id,'objects':[{'id':i,'name':'Tank1' if i<60 else 'Ramp','translation':[0,0,0],'groups':[placeholder()]} for i in list(range(37,49))+list(range(61,73))]})
-    files={str(p.relative_to(OUT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(OUT.rglob('*')) if p.is_file() and p.name!='manifest.json'}
-    write_json(OUT/'manifest.json',{'title':'纵深防线','generator':'tools/generate_depthline_assets.py','method':'Mathematical terrain, independently authored waves, convex hit volumes, procedural fragment plates. No legacy data inputs.','files':files})
+    files={str(p.relative_to(OUT)):hashlib.sha256(p.read_bytes()).hexdigest() for name in ('coast','interior') for p in sorted((OUT/name).rglob('*')) if p.is_file()}
+    write_json(OUT/'manifest.json',{'title':'纵深防线','generator':'tools/generate_depthline_assets.py','method':'Procedural terrain, collision volumes and fragment plates. Enemy schedules reconstructed from Beach Head 2000 and 2002 mission parameters.','files':files})
     print('Generated original Depthline scenes:',len(files),'files')
 
 if __name__=='__main__':main()

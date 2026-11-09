@@ -10,6 +10,7 @@ final class GameWeaponPresentation {
         let right: SCNVector3
         let mountRight: SCNVector3
         let muzzle: SCNVector3?
+        let breech: SCNVector3?
     }
     let version: OriginalGameVersion
     let parent: SCNNode
@@ -110,7 +111,8 @@ final class GameWeaponPresentation {
         return Basis(forward: node.convertVector(SCNVector3(0, 0, -1), to: nil),
                      right: node.convertVector(SCNVector3(1, 0, 0), to: nil),
                      mountRight: parent.convertVector(SCNVector3(1, 0, 0), to: nil),
-                     muzzle: muzzleTips[id].map { node.convertPosition($0,to:nil) })
+                     muzzle: muzzleTips[id].map { node.convertPosition($0,to:nil) },
+                     breech: muzzleTips[id].map { node.convertPosition(SCNVector3($0.x,$0.y,0),to:nil) })
     }
 }
 

@@ -12,15 +12,25 @@ func originalCampaignAssetSelfTest(resourceRoot2000: URL, resourceRoot2002: URL)
     func require(_ value: Bool, _ reason: String) throws {
         if !value { throw NSError(domain: "OriginalCampaignAssets", code: 1, userInfo: [NSLocalizedDescriptionKey: reason]) }
     }
-    for (game, root, expected) in [("2000", resourceRoot2000, 61), ("2002", resourceRoot2002, 99)] {
-        let levels = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("levels.json"))) as! [[String: Any]]
-        try require(levels.count == expected, "\(game) exported mission count")
+    for (game, root, maximum) in [("2000", resourceRoot2000, 60), ("2002", resourceRoot2002, 99)] {
+        let exported = try JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("levels.json"))) as! [[String: Any]]
+        let levels = exported.filter { game != "2000" || ($0["number"] as? Int) != 0 }
+        try require(levels.count == maximum, "\(game) playable mission count")
         let indexed = Dictionary(uniqueKeysWithValues: levels.map { ($0["number"] as! Int, $0) })
-        let maximum = game == "2000" ? 60 : 99
         for number in 1...maximum {
             guard let definition = indexed[number] else { try require(false, "\(game) missing mission\(number)"); continue }
             let campaign = OriginalCampaign(gameID: game, level: number, definition: definition)
+            try require(campaign.initialForce.isFinite && campaign.initialForce > 0, "\(game) mission\(number) has an active or scheduled enemy force")
             var events = campaign.takeInitialSpawns()
+            if number == 1 {
+                if game == "2000" {
+                    try require(events.map(\.type) == ["BARGE", "BARGE", "BARGE"] && campaign.initialForce == 24,
+                                "Coast opens with three infantry landing craft")
+                } else {
+                    try require(events.isEmpty && campaign.pendingSpawnCount == 5 && campaign.initialForce == 38,
+                                "Hills opens with three scheduled APCs and two attack helicopters")
+                }
+            }
             var sourceCounts: [Int: Int] = [:]
             // Simulate immediate elimination to prove every active/delayed/revive allocation can
             // resolve its accounted force. AI trajectories and player skill are tested separately.

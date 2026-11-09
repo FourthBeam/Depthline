@@ -3,7 +3,7 @@ import SceneKit
 
 final class DepthlineTraining {
     enum Stage: Int {
-        case capture, aim, fire, switchWeapon, cannonAim, cannonFire, handgun, supply, missile, complete
+        case capture, aim, fire, switchWeapon, cannonAim, cannonFire, handgun, supply, artillery, bombers, missile, complete
     }
 
     static let lessonCount = Stage.complete.rawValue
@@ -17,6 +17,11 @@ final class DepthlineTraining {
     private(set) var helicopter: DepthlineTrainingHelicopter?
     private var nextHelicopterTick: Int?
     private var replacedHelicopter = false
+    private(set) var availableSupport: OriginalSupportAction?
+    private(set) var airstrikeImpacts = 0
+    private var supportMarker: SCNNode?
+    private var supportImpacts: [OriginalEffectsRenderer.Token] = []
+    var supportFootprint: CGRect? { DepthlineTrainingSupport.area(for: stage) }
     var target: SCNNode {
         switch stage {
         case .switchWeapon, .cannonAim, .cannonFire: return cannonTarget
@@ -27,11 +32,14 @@ final class DepthlineTraining {
 
     func install(in game: Game) {
         stage = .capture
+        updateSupportMarker(in: game)
         guideOpen = false
         dropsReleased = 0
         helicopter = nil
         nextHelicopterTick = nil
         replacedHelicopter = false
+        availableSupport = nil
+        airstrikeImpacts = 0
         game.view.mouseCapture.release()
         game.inputLocked = false
         game.elapsed = 0
@@ -69,6 +77,10 @@ final class DepthlineTraining {
 
     func advance(in game: Game) {
         guard !guideOpen else { return }
+        let previousStage = stage
+        defer {
+            if previousStage != stage { updateSupportMarker(in: game) }
+        }
         // A trainee can keep practising after using the last round.
         if game.weapons.ammo.machineGun == 0 { game.weapons.ammo.machineGun = 240 }
         if game.weapons.ammo.cannon == 0 { game.weapons.ammo.cannon = 32 }
@@ -85,15 +97,41 @@ final class DepthlineTraining {
             if game.weapons.selected == .cannon { stage = .cannonAim }
         case .supply:
             if game.supply2000?.defenseCollected == true {
-                stage = .missile
-                game.weapons.ammo.missile = practiceMissiles
-                helicopter = DepthlineTrainingHelicopter(in: game)
+                stage = .artillery
+                availableSupport = .beach2000GroundBarrage
                 break
             }
             _ = game.supply2000?.updateAI(random: { game.random.next() }, terrainHeight: { x, z in
                 Float(game.assets.pointHeight(x: CGFloat(x) / 100, z: CGFloat(z) / 100)) * 100
             }, smokeTick: false)
             if game.supply2000?.parachutes.first?.visible != true { releaseDrop(in: game) }
+        case .artillery:
+            if availableSupport == nil && game.barrage == nil && !supportImpacts.contains(where: game.effects.isActive) {
+                stage = .bombers
+                availableSupport = .beach2002NineBomberAirstrike
+            }
+        case .bombers:
+            guard availableSupport == nil else { break }
+            game.updateBombers()
+            // A source bomber that drew zero delay flies through without dropping.
+            // Once the last aircraft has passed and all falling bombs have landed,
+            // keep the missile range free of old aircraft and their ordnance.
+            let canStillDrop = game.bombers.contains {
+                $0.active && ($0.state == 1 || $0.state == 2 || ($0.state == 3 && $0.counter > 0) || $0.state == 4)
+            }
+            if !canStillDrop && game.pendingBomberDrops.isEmpty && !game.enemyOrdnance.rounds.contains(where: { $0.state.kind == .bomb }) &&
+                !supportImpacts.contains(where: game.effects.isActive) {
+                game.bombers.removeAll()
+                game.enemies.removeAll { aircraft in
+                    guard aircraft.type == "BOMBER" else { return false }
+                    aircraft.node.removeFromParentNode()
+                    return true
+                }
+                if airstrikeImpacts == 0 { availableSupport = .beach2002NineBomberAirstrike; break }
+                stage = .missile
+                game.weapons.ammo.missile = practiceMissiles
+                helicopter = DepthlineTrainingHelicopter(in: game)
+            }
         case .missile:
             if let nextHelicopterTick, game.logicalTick >= nextHelicopterTick {
                 self.nextHelicopterTick = nil
@@ -109,15 +147,41 @@ final class DepthlineTraining {
         }
     }
 
-    func hitTarget(_ sweep: OriginalProjectileSweep, in game: Game) -> Bool {
+    func consumeSupport(_ requested: OriginalSupportAction?) -> OriginalSupportAction? {
+        guard let requested, availableSupport == requested else { return nil }
+        availableSupport = nil
+        return requested
+    }
+
+    func noteSupportImpact(_ effect: OriginalEffectsRenderer.Token?) {
+        if stage == .bombers { airstrikeImpacts += 1 }
+        if let effect { supportImpacts.append(effect) }
+    }
+
+    private func updateSupportMarker(in game: Game) {
+        supportImpacts.removeAll(keepingCapacity: true)
+        supportMarker?.removeFromParentNode()
+        supportMarker = nil
+        guard let area = supportFootprint, let action = availableSupport else { return }
+        let marker = DepthlineTrainingMarker.make(footprint: area, action: action, ground: game.assets.height)
+        game.scene.rootNode.addChildNode(marker)
+        supportMarker = marker
+    }
+
+    func targetContact(_ sweep: OriginalProjectileSweep) -> SCNVector3? {
         let requiredWeapon: OriginalWeapon
         switch stage {
         case .fire: requiredWeapon = .machineGun
         case .cannonFire: requiredWeapon = .cannon
         case .handgun: requiredWeapon = .handgun
-        default: return false
+        default: return nil
         }
-        guard sweep.kind.weapon == requiredWeapon, let impact = intersectTarget(from: sweep.start, to: sweep.end) else { return false }
+        guard sweep.kind.weapon == requiredWeapon else { return nil }
+        return intersectTarget(from: sweep.start, to: sweep.end)
+    }
+
+    func hitTarget(_ sweep: OriginalProjectileSweep, in game: Game) -> Bool {
+        guard let impact = targetContact(sweep) else { return false }
         let p = SIMD3<Double>(impact.x, impact.y, impact.z) * 100
         game.effects.emit(.impactFlash, at: p)
         game.playSound("Prize")
@@ -141,12 +205,7 @@ final class DepthlineTraining {
         helicopter = nil
         if byMissile {
             stage = .complete
-            game.shooting = false
-            game.inputLocked = true
-            game.view.mouseCapture.release()
-            game.onSectorCompleted?()
-            game.sound.stopAll()
-            game.refreshBattleOverlays()
+            game.completeTraining()
         } else {
             replacedHelicopter = true
             nextHelicopterTick = game.logicalTick + 45
@@ -225,6 +284,8 @@ final class DepthlineTraining {
         case .cannonFire: return DLoc.text("用炮弹命中远靶", "Hit the far target with a shell")
         case .handgun: return DLoc.text("用手枪命中靶面", "Hit the target with the pistol")
         case .supply: return DLoc.text("领取空投补给", "Collect the supply drop")
+        case .artillery: return DLoc.text("呼叫海岸炮兵", "Call coastal artillery")
+        case .bombers: return DLoc.text("呼叫丘陵轰炸机", "Call hill-sector bombers")
         case .missile: return DLoc.text("用导弹击毁直升机", "Shoot down the helicopter")
         case .complete: return DLoc.text("训练完成", "Training complete")
         }
@@ -251,6 +312,14 @@ final class DepthlineTraining {
             if dropsReleased > 1 { return DLoc.text("补给已重新投放。瞄准伞面或箱体开火。", "New drop inbound. Shoot the parachute or crate.") }
             if game.weapons.selected == .handgun { return DLoc.text("击中伞面或箱体领取补给。可按 G 换回机枪。", "Shoot the chute or crate. Press G for the machine gun.") }
             return DLoc.text("瞄准降落伞或悬挂的箱体，开火领取防御补给。", "Shoot the parachute or crate to repair your defenses.")
+        case .artillery:
+            return availableSupport != nil
+                ? DLoc.text("找到地面红圈中央的炮弹图标，按 A 呼叫炮击。", "Find the shell icon in the center of the red ring. Press A for artillery.")
+                : DLoc.text("炮弹已发射。红圈标出预计落区，留意那一带的爆炸。", "Shells incoming. The red ring marks the likely impact area. Watch for blasts there.")
+        case .bombers:
+            return availableSupport != nil
+                ? DLoc.text("找到地面红圈中央的炸弹图标，按 B 呼叫九架轰炸机。", "Find the bomb icon in the center of the red ring. Press B to call nine bombers.")
+                : DLoc.text("机群正在接近。红圈标出预计轰炸区，留意那一带的爆炸。", "Bombers inbound. The red ring marks the likely drop area. Watch for blasts there.")
         case .missile:
             if helicopter == nil { return DLoc.text("靶机已被击毁。下一架请练习用导弹击毁。", "Target down. Use a missile on the next helicopter.") }
             return replacedHelicopter ? DLoc.text("新靶机已就位。准星对准机身，按 M 发射导弹。", "New helicopter in position. Aim at its body and press M.")
@@ -266,6 +335,9 @@ final class DepthlineTraining {
         case .supply:
             guard let drop = game.supplyNodes[212] else { return nil }
             point = drop.simdConvertPosition(.init(0,-2,0), to: nil)
+        case .artillery, .bombers:
+            guard let supportMarker else { return nil }
+            point = supportMarker.simdWorldPosition
         case .missile:
             guard let helicopter else { return nil }
             point = SIMD3<Float>(helicopter.aimPoint)
@@ -293,6 +365,10 @@ extension Game {
             return true
         }
         if training.guideOpen { return true }
+        if event.keyCode == 0 || event.keyCode == 11 {
+            if !event.isARepeat { requestSupport(event.keyCode == 0 ? .beach2000GroundBarrage : .beach2002NineBomberAirstrike) }
+            return true
+        }
         return false
     }
 }

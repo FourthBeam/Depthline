@@ -3,9 +3,9 @@ import SceneKit
 /// Aim at an actual mission drop using the player sight. The near-miss, pickup
 /// and repeated shot all run through the shared projectile pool.
 extension Game {
-    func validateSupplyGunfire(canopy: Bool) throws -> [String: Any] {
+    func validateSupplyGunfire(canopy: Bool, output: URL? = nil) throws -> [String: Any] {
         let coast = version == .beach2000
-        let levelNumber = coast ? 1 : 3
+        let levelNumber = coast ? 1 : 6
         let seed: UInt32 = coast ? 20001102 : 200203
         let surface = canopy ? "canopy" : "crate"
         func check(_ ok: Bool, _ detail: String) throws {
@@ -33,6 +33,13 @@ extension Game {
         let payloadID = supply2002?.parachutes.first(where: { $0.objectID == id })?.payloadID
         let cargo = coast ? chute.childNode(withName:"RemasteredSupplyPayload", recursively:false) : payloadID.flatMap { supplyNodes[$0] }
         guard let cargo else { throw NSError(domain:"DepthlineSupply",code:2,userInfo:[NSLocalizedDescriptionKey:"Missing visible cargo on chute \(id)"]) }
+        let mark = coast ? DepthlineSupplyMark.coast(supply2000?.parachutes.first { $0.objectID == id }?.reward) :
+            DepthlineSupplyMark.hills(supply2002?.parachutes.first { $0.objectID == id }?.payloadKind)
+        let faces = cargo.childNode(withName:"cargo-stencil",recursively:false)?.childNodes ?? []
+        let ink = faces.first?.geometry?.firstMaterial
+        try check(mark != nil && ink?.name == mark.map { "supply-sign-" + $0.rawValue } &&
+                  faces.count == 4 && faces.allSatisfy { $0.geometry?.firstMaterial === ink },
+                  "All four crate faces must identify this particular reward")
         // Coast stores the painted box in the mesh itself. Inland places a
         // separate payload node under the parachute.
         let bounds = cargo.boundingBox
@@ -54,6 +61,12 @@ extension Game {
         updateOriginalSharedProjectiles()
         try check(!chute.isHidden && supplyMessageUntil == 0,"Enemy round through cargo claimed the supply")
 
+        if let output, !canopy {
+            aim(targetPoint())
+            SCNTransaction.flush()
+            let path = output.appendingPathComponent("\(assets.gameID)-airdrop-sight.png")
+            try captureNativePixels(options: NativeCaptureOptions(arguments: [])).write(to:path,options:.atomic)
+        }
         let shots = combat.shots
         combat.health = 50
         weapons.ammo.machineGun = 100; weapons.ammo.cannon = 3; weapons.ammo.missile = 1
@@ -99,7 +112,7 @@ extension Game {
         return ["game":assets.gameID,"level":levelNumber,"seed":seed,"surface":surface,"chuteID":id,
                 "releasedAtTick":released,"releasePositionMetres":releasePosition,
                 "burstStartTick":burstStart,"aimAtBurstStartMetres":[firstAim.x,firstAim.y,firstAim.z],"pickupTick":impactTick,
-                "shotsInBurst":shotsInBurst,"rangeMetres":range,"message":hud.message,
+                "shotsInBurst":shotsInBurst,"rangeMetres":range,"message":hud.message,"mark":mark!.rawValue,
                 "defenceBeforeAndAfter":[receiptHealth,combat.health],"machineGunBeforeAndAfter":[receiptAmmo.machineGun,ammo.machineGun],
                 "cannonBeforeAndAfter":[receiptAmmo.cannon,ammo.cannon],"missileBeforeAndAfter":[receiptAmmo.missile,ammo.missile],
                 "enemyRoundIgnored":true,"wideShotMissed":true,"repeatIgnored":true]

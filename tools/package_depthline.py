@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package only independently generated resources, with a provenance inventory."""
+"""Package the game's resource allowlist, with a provenance inventory."""
 import hashlib
 import json
 import re
@@ -113,8 +113,13 @@ def package_resources(dest, icon):
             entry['origin'] = 'Project-authored interface localization'
         elif name.startswith('remastered-assets/'):
             entry['origin'] = 'Text-prompt generated image; project generation records retained in development source'
+        elif name.endswith('/levels.json'):
+            coast = name.startswith('field-coast/')
+            entry.update(origin='Enemy schedules and player mission settings reconstructed from Beach Head 2000' if coast else
+                                'Enemy schedules and player mission settings reconstructed from Beach Head 2002',
+                         source='tools/coast_missions.json' if coast else 'tools/hills_missions.json')
         else:
-            entry['origin'] = 'Original programmatic synthesis, procedural scenery or newly authored mission data'
+            entry['origin'] = 'Original programmatic synthesis or procedural scenery'
         inventory.append(entry)
     provenance = {'title': '纵深防线',
                   'sources': ['tools/generate_depthline_assets.py', 'tools/generate_original_audio.py',

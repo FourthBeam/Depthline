@@ -11,11 +11,15 @@ extension AppDelegate {
         try mouseCaptureSelfTest()
         try originalInputModelSelfTest()
         try campaignStoreSelfTest()
+        try originalCampaignSelfTest()
+        try originalCampaignAssetSelfTest(resourceRoot2000: gameResourceRoot("2000"), resourceRoot2002: gameResourceRoot("2002"))
         var results: [CampaignRuntimeValidation.Mission] = []
         var projectionSamples: [[String:Any]] = []
         var helicopterFlights: [[String:Any]] = []
         var supplySamples: [[String:Any]] = []
         var infantrySamples: [[String:Any]] = []
+        var coverSamples: [[String:Any]] = []
+        var reticleSamples: [[String:Any]] = []
         let reportPath = arguments.firstIndex(of:"--depthline-report").flatMap { index in
             arguments.indices.contains(index + 1) ? arguments[index + 1] : nil
         }
@@ -27,19 +31,35 @@ extension AppDelegate {
             try startGame(id)
             guard let current=game else {throw NSError(domain:"DepthlineValidation",code:2)}
             current.timer?.invalidate();current.timer=nil;current.settings.soundEnabled=false
-            try check(current.assets.levels.count == (id == "2000" ? 60:100),"Complete new campaign")
+            try check(current.assets.levels.count == (id == "2000" ? 60 : 99), "Complete restored campaign")
+            try check(current.assets.levels.allSatisfy { $0["source"] == nil && $0["commands"] == nil },
+                      "Packaged missions contain normalized data without source paths or raw scripts")
             try check(current.assets.objects.allSatisfy { $0["sourceLine"] == nil },"No extracted geometry line references")
             try check(current.scene.rootNode.childNode(withName:"DepthlineEnvironment",recursively:false) != nil,"Original emplacement installed")
             try check(window.collectionBehavior.contains(.fullScreenPrimary),"Full-screen primary window")
+            current.view.layoutSubtreeIfNeeded()
+            current.updateOriginalHUD()
+            window.displayIfNeeded()
+            current.hud.displayIfNeeded()
+            // AppKit may mark only the backing layer until the next display pass.
+            func hudIsDirty() -> Bool { current.hud.needsDisplay || current.hud.layer?.needsDisplay() == true }
+            try check(!hudIsDirty(), "Initial HUD layout and draw completed")
+            current.updateOriginalHUD()
+            try check(!hudIsDirty(), "An unchanged battle HUD leaves its backing layer clean")
+            current.weapons.ammo.machineGun -= 1
+            current.updateOriginalHUD()
+            try check(hudIsDirty() && current.hud.weaponAmmo == current.weapons.ammo.machineGun,
+                      "Spending a round refreshes the displayed ammunition")
+            current.weapons.ammo.machineGun += 1
+            current.updateOriginalHUD()
+            try validateProjectileSlotReuse(current)
+            coverSamples += try validatePlayerMachineGunCover(current)
+            reticleSamples += try current.validateMachineGunReticle(output: captureDirectory)
+            try validateMissionEquipment(current)
+            if id == "2002" { try validateLastHelicopter(current) }
             if id == "2002" { try current.validateCarriageTraverse() }
             helicopterFlights.append(try current.validateDepthlineHelicopterFlight())
             infantrySamples.append(try current.validateDepthlineInfantry(output: captureDirectory))
-            for mission in current.assets.levels {
-                let number=mission["number"] as! Int
-                let campaign=OriginalCampaign(gameID:id,level:number,definition:mission)
-                try check(campaign.initialForce>0 && campaign.initialForce.isFinite,"Positive mission force \(id)/\(number)")
-                try check(mission["source"]==nil && mission["commands"]==nil,"New mission declarations only")
-            }
             if id == "2000" {
                 guard let field=current.assets.shoreline, let water=current.assets.waterContact else {
                     throw NSError(domain:"ShoreContact",code:1)
@@ -58,14 +78,18 @@ extension AppDelegate {
                     try check(retired && contact?.kind == expected,"Surface impact follows the visible bay")
                 }
             }
-            for level in (id == "2000" ? [1,12,60]:[1,5,24,100]) {
+            for level in (id == "2000" ? [1,12,60]:[1,11,65,99]) {
                 results.append(try CampaignRuntimeValidation.run(current,level:level,ticks:1600))
             }
             for canopy in [false,true] {
-                supplySamples.append(try current.validateSupplyGunfire(canopy:canopy))
+                supplySamples.append(try current.validateSupplyGunfire(canopy:canopy,output:captureDirectory))
             }
             current.restart();current.settings.soundEnabled=false
             projectionSamples += try validateDepthlinePresentation(current)
+            // Check the actual muzzle in a clear lane. The reticle regression
+            // above separately exercises the low barrel beside a close sandbag.
+            current.camera.eulerAngles = SCNVector3(8 * CGFloat.pi / 180, id == "2000" ? 0 : CGFloat.pi, 0)
+            current.syncGunPose()
             let ammo=current.weapons.ammo.machineGun, shots=current.combat.shots
             // A restarted run preserves the weapon's cadence phase. Wait for
             // its next accepted shot instead of assuming the first phase fires.
@@ -105,10 +129,12 @@ extension AppDelegate {
         }
         let payload:[String:Any]=[
             "title":DepthlineIdentity.title,
-            "scope":"New procedurally authored resources; seven selected production missions, 1600 ticks each, no player fire and health replenished for observation. Not 160 wins or all-mission runtime coverage.",
+            "scope":"Seven production missions including both final missions, 1600 ticks each with no player fire and health replenished for observation.",
             "aimMeasurements":projectionSamples,
             "helicopterFlights":helicopterFlights,
             "infantry":infantrySamples,
+            "machineGunCover":coverSamples,
+            "machineGunReticle":reticleSamples,
             "gunMount":"Hills mission two: 37 traverse headings at each of four pitch angles. Both ends of the support stay on their pins and the fork keeps its orientation relative to the receiver.",
             "airdropGunfire":supplySamples,
             "missionResults":try JSONSerialization.jsonObject(with:JSONEncoder().encode(results)),
@@ -116,6 +142,198 @@ extension AppDelegate {
         let path = reportPath ?? "build/depthline-validation.json"
         try JSONSerialization.data(withJSONObject:payload,options:[.prettyPrinted,.sortedKeys]).write(to:URL(fileURLWithPath:path))
         print("PASS: Depthline original resource integration, 7 missions / 11200 ticks")
+    }
+
+    private func validateProjectileSlotReuse(_ game: Game) throws {
+        let original = game.enemies
+        defer { game.enemies = original }
+        let first = Enemy(node: SCNNode(), type: "TANK", flying: false)
+        let second = Enemy(node: SCNNode(), type: "TANK", flying: false)
+        game.enemies = [first, second]
+        func visible() -> Enemy? { game.projectileTargets.visibleEnemy(at: 37) }
+        try CampaignRuntimeValidation.require(visible() === first, "Matching slots retain original actor order")
+        first.node.isHidden = true
+        try CampaignRuntimeValidation.require(visible() === second, "A hidden actor immediately exposes the next slot occupant")
+        first.node.isHidden = false
+        game.enemies.removeFirst()
+        try CampaignRuntimeValidation.require(visible() === second, "Removed slot occupants cannot take a later round")
+        game.enemies = []
+        try CampaignRuntimeValidation.require(visible() == nil, "An empty slot cannot take a round")
+        game.enemies.append(first)
+        try CampaignRuntimeValidation.require(visible() === first, "A reused slot can take a round on the same tick")
+    }
+
+    /// Real trigger, alternating barrels and production projectile steps. SceneKit's
+    /// visible triangle is the independent reference for the decal and its normal.
+    private func validatePlayerMachineGunCover(_ game: Game) throws -> [[String: Any]] {
+        let coast = game.version == .beach2000
+        func check(_ ok: Bool, _ detail: String) throws {
+            try CampaignRuntimeValidation.require(ok, "Machine-gun cover \(game.assets.gameID): \(detail)")
+        }
+        let level = coast ? 1 : 14  // Both missions equip the twin mount.
+        game.restart(level: level - 1)
+        defer { game.restart() }
+        SCNTransaction.flush()
+        guard let cover = game.emplacementCover else { throw NSError(domain: "MissingEmplacementCover", code: level) }
+        let yaw: CGFloat = coast ? 29 : 209
+        let sandPitch: CGFloat = coast ? -6 : -9.5
+        let shots: [(CGFloat, DepthlineCover.Surface?, String)] = [
+            (sandPitch, .sandbag, "Sandbags"), (-12, .concrete, "Concrete"),
+            (4, nil, "open"), (4, nil, "open")
+        ]
+        var samples: [[String: Any]] = [], openMuzzles: [SIMD3<Float>] = []
+        let health = game.combat.health, ammo = game.weapons.ammo.machineGun
+        for (pitch, expectedSurface, batch) in shots {
+            game.camera.eulerAngles = SCNVector3(pitch * .pi / 180, yaw * .pi / 180, 0)
+            game.syncGunPose()
+            let before = game.combat.shots, previousMarks = game.coverImpacts.marks.count
+            game.shooting = true
+            for _ in 0..<12 where game.combat.shots == before { game.simulationTick() }
+            game.shooting = false
+            guard let round = game.projectiles.snapshots.first, round.kind == .ballistic(.machineGun) else {
+                throw NSError(domain: "ExpectedPlayerTracer", code: level)
+            }
+            let muzzle = SIMD3<Float>(round.position), direction = game.camera.simdWorldFront
+            let eye = game.camera.simdWorldPosition
+            let hit = cover.firstHit(from: eye, to: eye + direction * 12)
+            try check(game.combat.shots == before + 1 && hit?.surface == expectedSurface,
+                      "Unexpected first surface at yaw \(yaw), pitch \(pitch): \(String(describing: hit?.surface))")
+            for _ in 0..<3 { game.updateOriginalSharedProjectiles() }
+            if let hit {
+                guard let mesh = game.scene.rootNode.childNode(withName: "DepthlineEnvironment" + batch, recursively: true),
+                      let mark = game.coverImpacts.marks.last else { throw NSError(domain: "MissingCoverMark", code: level) }
+                let a = mark.simdWorldPosition + hit.normal * 0.04, b = mark.simdWorldPosition - hit.normal * 0.06
+                let meshHit = mesh.hitTestWithSegment(from: mesh.convertPosition(SCNVector3(a), from: nil),
+                                                      to: mesh.convertPosition(SCNVector3(b), from: nil),
+                                                      options: [SCNHitTestOption.backFaceCulling.rawValue: false]).first
+                try check(game.coverImpacts.marks.count == previousMarks + 1 && game.projectiles.ballisticCount == 0 &&
+                          simd_distance(mark.simdWorldPosition, hit.position) < 0.025 && simd_dot(hit.normal, direction) < 0 &&
+                          simd_dot(mark.simdWorldOrientation.act(SIMD3(0, 0, 1)), hit.normal) > 0.99 &&
+                          meshHit.map { simd_distance(SIMD3<Float>($0.worldCoordinates), mark.simdWorldPosition) < 0.025 } == true,
+                          "Shot must stop on the nearest rendered \(batch) triangle and leave a mark on its entry face")
+            } else {
+                try check(game.coverImpacts.marks.count == previousMarks && game.projectiles.ballisticCount == 1,
+                          "The open firing lane must pass a live tracer without leaving a mark")
+                _ = game.projectiles.clear()
+                openMuzzles.append(muzzle)
+            }
+            samples.append(["sector": game.assets.gameID, "mission": level, "yaw": yaw, "pitch": pitch,
+                            "surface": batch, "muzzleMetres": [muzzle.x, muzzle.y, muzzle.z]])
+        }
+        try check(openMuzzles.count == 2 && simd_distance(openMuzzles[0], openMuzzles[1]) > 0.10,
+                  "Consecutive machine-gun rounds must come from the two physical barrels")
+        try check(game.combat.health == health && game.weapons.ammo.machineGun == ammo - shots.count,
+                  "Expected defence \(health), ammo \(ammo - shots.count); got \(game.combat.health), \(game.weapons.ammo.machineGun)")
+        try validatePlayerShotOcclusion(game)
+        game.restart(level: level - 1)
+        try check(game.coverImpacts.marks.isEmpty, "A new mission must clear previous bullet holes")
+        return samples
+    }
+
+    /// Put the same standing infantry target on either side of a wall crossed
+    /// within one bullet step, so hit order cannot be inferred from the endpoint.
+    private func validatePlayerShotOcclusion(_ game: Game) throws {
+        let coast = game.version == .beach2000
+        let forward = SIMD3<Float>(0, 0, coast ? -1 : 1)
+        let start = forward * 5 + SIMD3(0, Float(game.assets.height(x: 0, z: 0)) + 0.22, 0)
+        let action = OriginalFireAction(weapon: .machineGun, barrel: .left, variant: 0, recoilTicks: 0,
+                                        ballistic: game.weapons.profile.ballistic(.machineGun))
+        let end = start + forward * (coast ? 4 : 5)
+        let sweep = OriginalProjectileSweep(kind: .ballistic(.machineGun), start: SCNVector3(start), end: SCNVector3(end))
+        guard let wall = game.emplacementCover?.firstHit(from: start, to: end), wall.surface == .concrete else {
+            throw NSError(domain: "MissingCoverBetweenActors", code: 1)
+        }
+        for shielded in [true, false] {
+            let actor = Enemy(node: game.assets.model("INFANTRY"), type: "INFANTRY", flying: false)
+            actor.aiState = coast ? 14 : 19
+            guard let skin = actor.node as? RemasteredInfantryNode else { throw NSError(domain: "MissingInfantrySkin", code: 1) }
+            skin.apply(state: actor.aiState, frame: coast ? 15 : 88, direction: .init(0, 0, 1))
+            let chest = skin.bones[0].simdConvertPosition(SIMD3(0, 0.32, 0), to: skin)
+            actor.node.simdPosition = wall.position + forward * (shielded ? 0.8 : -0.8) - chest
+            game.scene.rootNode.addChildNode(actor.node)
+            game.enemies.append(actor)
+            defer { actor.node.removeFromParentNode(); game.enemies.removeAll { $0 === actor } }
+            let eligible = game.hitCandidates(sweep).first { $0.target === actor.node }
+            try CampaignRuntimeValidation.require(eligible.map { ($0.fraction > CGFloat(wall.fraction)) == shielded } == true,
+                                                  "Occlusion fixture must cross the actor and the wall in the intended order")
+            let marks = game.coverImpacts.marks.count, hits = game.combat.hits
+            try CampaignRuntimeValidation.require(game.projectiles.spawn(action, from: sweep.start, direction: SCNVector3(forward)),
+                                                  "Occlusion fixture must enter the live projectile pool")
+            game.updateOriginalSharedProjectiles()
+            try CampaignRuntimeValidation.require(game.projectiles.ballisticCount == 0 &&
+                game.combat.hits == hits + (shielded ? 0 : 1) && game.coverImpacts.marks.count == marks + (shielded ? 1 : 0),
+                "The first physical contact must receive the shot when infantry is \(shielded ? "behind" : "in front of") the parapet")
+        }
+    }
+
+    /// A loaded CH-53 loses its last six force points on the lethal bullet,
+    /// several frames before it hits the ground. Drive the actual hit and crash paths.
+    private func validateLastHelicopter(_ game: Game) throws {
+        defer { game.restart() }
+        game.restart(level: 10)
+        for _ in 0..<55 { game.simulationTick() }
+        guard let mission = game.campaign, let heli = game.enemies.first(where: { $0.type == "CH53" && !$0.node.isHidden }),
+              let objects = game.levelDefinition?["objects"] as? [[String: Any]] else {
+            throw NSError(domain: "MissingCH53", code: 11)
+        }
+        for i in objects.indices where i != heli.sourceIndex {
+            mission.resolveForce(sourceIndex: i, amount: mission.forceRemaining(sourceIndex: i))
+        }
+        let p = heli.node.position
+        let sweep = OriginalProjectileSweep(kind: .ballistic(.machineGun), start: p, end: p)
+        while heli.hp > 0 {
+            let previous = heli.hp
+            game.applySharedObjectHit(.init(fraction: 1, target: heli.node, originalPart: 1), sweep: sweep, enemy: heli)
+            try CampaignRuntimeValidation.require(heli.hp < previous, "Lethal CH-53 fixture must take bullet damage")
+        }
+        try CampaignRuntimeValidation.require(mission.remainingForce == 0 && heli.node.parent != nil, "A loaded CH-53 falls after its force is removed")
+        game.simulationTick()
+        try CampaignRuntimeValidation.require(game.isPlayingVictoryEffects && !game.isShowingVictoryChoice && !game.acceptsBattleInput, "No menu over the falling helicopter")
+        let health = game.combat.health, score = game.combat.score, waves = mission.activeTicks
+        var sawImpact = false, sawDebris = false
+        for _ in 0..<1200 where game.isPlayingVictoryEffects {
+            game.simulationTick()
+            sawImpact = sawImpact || game.effects.snapshots.contains { [.groundExplosion, .explosion].contains($0.token.kind) }
+            sawDebris = sawDebris || game.fragments.hasMovingDebris
+        }
+        try CampaignRuntimeValidation.require(sawImpact && sawDebris && heli.node.parent == nil &&
+            !game.hasPendingVictoryEffects && game.pendingNextLevel == 12 && game.isShowingVictoryChoice,
+            "CH-53 must crash, explode and finish throwing debris before showing the next mission")
+        try CampaignRuntimeValidation.require(game.combat.health == health && game.combat.score == score && mission.activeTicks == waves,
+            "Playing the crash must not restart combat or alter its outcome")
+        print("PASS: final CH-53 falls, explodes and settles before the victory menu")
+    }
+
+    private func validateMissionEquipment(_ game: Game) throws {
+        defer { game.restart() }
+        let coast = game.version == .beach2000
+        for number in coast ? [1, 11, 60] : [1, 9, 21, 25, 38] {
+            game.restart(level: number - 1)
+            guard let mission = game.levelDefinition, let rounds = mission["ammo"] as? [Int],
+                  rounds.count == (coast ? 3 : 4) else {
+                throw NSError(domain: "MissingMissionEquipment", code: number)
+            }
+            let flags = mission["flags"] as? [String] ?? []
+            let ammo = OriginalAmmo(machineGun: rounds[0], cannon: rounds[1], missile: rounds[2],
+                                    handgun: 15, flare: coast ? 0 : rounds[3])
+            let pistol = !coast && ammo.machineGun == 0
+            let support = coast ? mission["artillery"] as? Int == 1 : flags.contains("Bombers")
+            let timer = coast ? mission["time"] as? Int : nil
+            let context = "\(game.assets.gameID) mission \(number)"
+            try CampaignRuntimeValidation.require(game.weapons.ammo == ammo && game.combat.health == 100 &&
+                game.weapons.selected == (pistol ? .handgun : .machineGun), "Authored weapon loadout for " + context)
+            try CampaignRuntimeValidation.require(game.hud.weaponSight == (pistol ? "handgun" : "machineGun") &&
+                game.hud.weaponAmmo == (pistol ? 15 : ammo.machineGun) && game.hud.missileAmmo == ammo.missile &&
+                game.hud.flareAmmo == ammo.flare && game.hud.remainingTime == timer &&
+                game.hud.supportCount == (support ? 1 : 0), "Battle HUD at entry to " + context)
+            game.requestSupport()
+            if coast {
+                try CampaignRuntimeValidation.require((game.barrage != nil) == support, "Ground barrage for " + context)
+            } else if support {
+                try CampaignRuntimeValidation.require(game.bombers.filter(\.active).count == 9, "Nine-bomber support for " + context)
+            }
+            try CampaignRuntimeValidation.require(!game.weapons.supportAvailable, "Single support allotment for " + context)
+        }
     }
 
     private func validateDepthlinePresentation(_ current: Game) throws -> [[String:Any]] {

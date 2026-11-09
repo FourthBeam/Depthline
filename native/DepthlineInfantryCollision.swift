@@ -1,7 +1,7 @@
 import SceneKit
 
 /// The skin binds each triangle to one bone. Store its rest triangles once,
-/// then transform a shell's segment into the current pose of each body part.
+/// then transform the projectile segment into the current pose of each body part.
 struct DepthlineInfantryBodyPart {
     let bone: Int
     let shape: OriginalCollision.Shape
@@ -38,8 +38,13 @@ extension Game {
         let lengthSquared = simd_length_squared(direction)
         guard lengthSquared > 0 else { return nil }
         var closest: OriginalProjectileHit?
-        for enemy in enemies where exposedToDepthlineShell(enemy) {
+        let bullet = sweep.kind == .ballistic(.machineGun)
+        for enemy in enemies {
             guard let actor = enemy.node as? RemasteredInfantryNode else { continue }
+            if bullet {
+                guard !actor.isHidden, enemy.aiState > 1 else { continue }
+                if version == .beach2000, enemy.aiState >= 46 || (21...25).contains(enemy.aiState) { continue }
+            } else if !exposedToDepthlineShell(enemy) { continue }
             // Cheap world-space rejection before testing the animated skin.
             let origin = actor.simdWorldPosition
             let t = max(0, min(1, simd_dot(origin - start, direction) / lengthSquared))

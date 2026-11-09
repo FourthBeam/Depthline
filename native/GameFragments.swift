@@ -1,6 +1,50 @@
 import SceneKit
 
 extension Game {
+    private func hasVictoryDeath(_ enemy: Enemy) -> Bool {
+        enemy.infantryAI?.isDying == true || enemy.originalAI?.isDyingAircraft == true
+    }
+
+    var hasPendingVictoryDeaths: Bool {
+        if version == .beach2000 {
+            return original2000AI?.hasPendingDeaths == true || aircraft2000?.hasPendingDeaths == true || supply2000?.plane.isCrashing == true
+        }
+        return enemies.contains(where: hasVictoryDeath) || supply2002?.planes.contains(where: \.isCrashing) == true
+    }
+
+    /// Advance the existing death state machines without running combat, reinforcements or supply passes.
+    func advanceVictoryDeaths() {
+        if version == .beach2000 {
+            updateOriginal2000AI(deathsOnly: true)
+            if supply2000?.plane.isCrashing == true {
+                let events = supply2000?.updateAI(random: { self.random.next() }, terrainHeight: { [assets] x,z in
+                    Float(assets.pointHeight(x: CGFloat(x)*0.01, z: CGFloat(z)*0.01))*100
+                }, smokeTick: logicalTick % 2 == 0, deathsOnly: true) ?? []
+                consumeSupplyEvents(events.filter {
+                    if case .scoreChanged = $0 { return false }
+                    return true
+                })
+                syncSupplyNodes()
+            }
+            return
+        }
+        for enemy in enemies where hasVictoryDeath(enemy) {
+            updateEnemyAI(enemy, deferSharedPhases: false, deathsOnly: true)
+        }
+        if supply2002?.planes.contains(where: \.isCrashing) == true {
+            let events = supply2002?.updateAircraft(random: { self.random.next() }, terrainHeight: { [assets] x,z in
+                Float(assets.pointHeight(x: CGFloat(x)*0.01, z: CGFloat(z)*0.01))*100
+            }, smokeTick: logicalTick % 2 == 0, deathsOnly: true, allocateTrooperID: { self.allocateTrooperID() }) ?? []
+            consumeSupply2002Events(events.filter {
+                if case .remainingForceChanged = $0 { return false }
+                return true
+            })
+            syncSupply2002Nodes()
+        }
+    }
+}
+
+extension Game {
     func originalRotationDegrees(_ node:SCNNode)->SIMD3<Double> {
         let r=node.eulerAngles
         return SIMD3(Double(r.x),Double(r.y),Double(r.z)) * (180 / .pi)

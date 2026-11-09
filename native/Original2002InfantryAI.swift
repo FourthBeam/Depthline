@@ -41,6 +41,7 @@ final class Original2002InfantryAI {
     private var burnHeight = 0.0
     private var deferredForceResolved = false
     var apcExit: DepthlineAPCExit?
+    private var positioning = DepthlineInfantryPositioning()
     private var rng: OriginalEnemyAI.Random
 
     init(position: SIMD3<Double>, direction: SIMD3<Double> = SIMD3(0, 0, -1),
@@ -78,6 +79,7 @@ final class Original2002InfantryAI {
         rollDegrees = 0; rollSpeed = spin
         frameIndex = [70:138, 71:146, 72:154, 73:222, 74:270][state]!
     }
+    var isDying: Bool { isActive && ((50...66).contains(state) || (70...74).contains(state)) }
     func remove() { isActive = false }
     var burningVisual: BurningVisual? { snapshot([]).burningVisual }
 
@@ -85,7 +87,8 @@ final class Original2002InfantryAI {
     /// state2 after landing. Height is point-sampled HMap*8, not the vehicle bilinear sampler.
     func tick(terrainHeight: (Double, Double) -> Double, cameraYawDegrees: Double = 0,
               cameraPitchDegrees: Double = 0, parachutePosition: SIMD3<Double>? = nil,
-              random: (() -> UInt32)? = nil) -> Update {
+              random: (() -> UInt32)? = nil, infantryField: DepthlineInfantryPositioning.Field? = nil,
+              slot: Int = 0) -> Update {
         guard isActive else { return snapshot([]) }
         if state == 9, apcExit != nil {
             if let step = apcExit?.step(ground: terrainHeight) {
@@ -98,6 +101,28 @@ final class Original2002InfantryAI {
                 }
             }
             return snapshot([])
+        }
+        if let field = infantryField, (17...41).contains(state),
+           let order = positioning.order(slot: slot, at: position, attacking: state >= 29, field: field) {
+            switch order {
+            case .walk(let toward):
+                state = 20; speedPerTick = 4; direction = SIMD3(toward.x, 0, toward.y)
+                if !(79...92).contains(frameIndex) { frameIndex = 79 }
+                runFrame()
+                position += direction * speedPerTick
+                position.y = terrainHeight(position.x, position.z)
+                yawDegrees = cameraYawDegrees
+                return snapshot([])
+            case .wait:
+                speedPerTick = 0
+                return snapshot([])
+            case .hold:
+                speedPerTick = 0
+                if (17...28).contains(state) {
+                    if max(abs(position.x), abs(position.z)) < 1200 { state = 36; frameIndex = 87 }
+                    else { state = 29; frameIndex = 125 }
+                }
+            }
         }
         let rand = { Int((random?() ?? self.rng.next()) & 0x7fff) }
         var events: [Event] = []

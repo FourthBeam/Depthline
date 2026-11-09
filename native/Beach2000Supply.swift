@@ -68,6 +68,7 @@ struct Beach2000Supply {
     }
 
     struct Plane: Equatable {
+        var isCrashing: Bool { visible && (state == .beginCrash || state == .crashing) }
         let objectID = 207
         var visible = false
         var position = Vector.zero
@@ -161,9 +162,10 @@ struct Beach2000Supply {
     @discardableResult
     mutating func updateAI(random: () -> UInt32,
                            terrainHeight: (Float, Float) -> Float,
-                           smokeTick: Bool) -> [Event] {
+                           smokeTick: Bool, deathsOnly: Bool = false) -> [Event] {
         var events: [Event] = []
-        for index in parachutes.indices where parachutes[index].visible {
+        if deathsOnly && !plane.isCrashing { return events }
+        for index in parachutes.indices where !deathsOnly && parachutes[index].visible {
             let swing = cargoDescent.nextSwing(pitch: parachutes[index].pitch, velocity: parachutes[index].angularVelocity)
             parachutes[index].pitch = swing.0
             parachutes[index].angularVelocity = swing.1

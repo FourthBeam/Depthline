@@ -1,0 +1,1729 @@
+[
+  {
+    "number": 1,
+    "ammo": [400, 5, 10, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "COBRA": "South"},
+    "waves": {
+      "APC1": [100, 130, 150],
+      "COBRA": [10, 70]
+    },
+    "C130": []
+  },
+  {
+    "number": 2,
+    "ammo": [400, 5, 10, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "C130": "South"},
+    "waves": {
+      "APC1": [20, 50, 70],
+      "APC2": [140, 120]
+    },
+    "C130": [
+      {"delay": 100, "troops1": 8, "passes": 1}
+    ]
+  },
+  {
+    "number": 3,
+    "ammo": [400, 8, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 4, 4, 4],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [180, 190],
+      "APC1": [10, 50, 70],
+      "APC2": [150, 170],
+      "COBRA": [10, 20]
+    },
+    "C130": []
+  },
+  {
+    "number": 4,
+    "ammo": [400, 10, 10, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 4, 4, 4],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South"},
+    "waves": {
+      "TANK": [60, 80, 100],
+      "APC1": [190, 250, 220],
+      "APC2": [160, 170, 180, 150]
+    },
+    "C130": []
+  },
+  {
+    "number": 5,
+    "ammo": [400, 10, 20, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 5, 3, 3],
+    "lighting": "day",
+    "directions": {"JET": "South"},
+    "waves": {
+      "APC1": [300, 340, 360],
+      "JET": [20, 50, 70, 90]
+    },
+    "C130": []
+  },
+  {
+    "number": 6,
+    "ammo": [400, 5, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "COBRA": "South", "C130": "South"},
+    "waves": {
+      "APC1": [200, 230, 250, 270],
+      "APC2": [300, 300],
+      "COBRA": [10, 30, 50, 70]
+    },
+    "C130": [
+      {"delay": 1000, "adrop": 2, "pdrop": 2, "passes": 1}
+    ]
+  },
+  {
+    "number": 7,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 4, 4, 4],
+    "lighting": "day",
+    "directions": {"JET": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [200, 260, 210, 220],
+      "JET": [10, 20, 30, 50],
+      "COBRA": [200, 250, 270]
+    },
+    "C130": []
+  },
+  {
+    "number": 8,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 60, 100]
+    },
+    "C130": [
+      {"delay": 300, "troops1": 8, "passes": 1},
+      {"delay": 350, "troops1": 8, "far": true, "passes": 1},
+      {"delay": 400, "troops1": 6, "passes": 1, "far": true}
+    ]
+  },
+  {
+    "number": 9,
+    "ammo": [400, 10, 8, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [4, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 60, 80, 100]
+    },
+    "C130": [
+      {"delay": 150, "troops1": 6, "adrop": 1, "passes": 1},
+      {"delay": 250, "troops1": 6, "passes": 1},
+      {"delay": 200, "troops1": 6, "adrop": 1, "passes": 1},
+      {"delay": 250, "troops1": 8, "adrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 10,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"TANK": "West", "APC": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [20, 60, 90, 400, 430, 460],
+      "APC1": [200, 250, 400, 440],
+      "APC2": [270, null, 480, 460],
+      "COBRA": [null, 310, 310, 310]
+    },
+    "C130": []
+  },
+  {
+    "number": 11,
+    "ammo": [400, 2, 2, 20],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "spotlight",
+    "directions": {},
+    "waves": {
+      "CH53": [50, 60, 70, 80]
+    },
+    "C130": []
+  },
+  {
+    "number": 12,
+    "ammo": [400, 10, 8, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 5, 5],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 60, 70]
+    },
+    "C130": [
+      {"delay": 100, "troops1": 8, "passes": 1},
+      {"delay": 80, "troops1": 8, "hdrop": 2, "passes": 1}
+    ]
+  },
+  {
+    "number": 13,
+    "ammo": [400, 8, 8, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [6, 4, 5, 5],
+    "lighting": "day",
+    "directions": {"TANK": "North", "COBRA": "South", "C130": "South"},
+    "waves": {
+      "TANK": [10, 20, 400, 400],
+      "COBRA": [500, 550, 500]
+    },
+    "C130": [
+      {"delay": 60, "troops1": 6, "passes": 1},
+      {"delay": 100, "troops1": 6, "passes": 1},
+      {"delay": 150, "troops1": 6, "mdrop": 4, "passes": 1},
+      {"delay": 80, "troops1": 6, "adrop": 2, "passes": 1},
+      {"delay": 200, "troops1": 6, "hdrop": 2, "passes": 1},
+      {"delay": 250, "troops1": 6, "mdrop": 2, "hdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 600, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1}
+    ]
+  },
+  {
+    "number": 14,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [3, 4, 5, 5],
+    "lighting": "day",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [10, 20, 30, 400, 450, 400]
+    },
+    "C130": [
+      {"delay": 70, "troops1": 6, "passes": 1},
+      {"delay": 130, "troops1": 6, "passes": 1},
+      {"delay": 150, "troops1": 6, "mdrop": 2, "passes": 1},
+      {"delay": 100, "troops1": 6, "adrop": 2, "passes": 1},
+      {"delay": 200, "troops1": 6, "hdrop": 2, "passes": 1},
+      {"delay": 250, "troops1": 6, "pdrop": 2, "passes": 1},
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 15,
+    "ammo": [400, 4, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"APC": "South", "JET": "East", "COBRA": "South"},
+    "waves": {
+      "APC1": [400, 440, 460],
+      "APC2": [180, 160],
+      "JET": [30, 50, 80, 100],
+      "COBRA": [400, 400, 400, 750, 750, 750],
+      "CH53": [800, 800, 800]
+    },
+    "C130": [
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 4}
+    ]
+  },
+  {
+    "number": 16,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"APC": "South", "COBRA": "South", "CH53": "South"},
+    "waves": {
+      "TANK": [300, 320, 350],
+      "APC1": [400, 430, 460],
+      "JET": [500],
+      "COBRA": [50, 60, 60, 70, 70, 80],
+      "CH53": [600, 600, 600]
+    },
+    "C130": []
+  },
+  {
+    "number": 17,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 5, 5, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [100, 150, 200, 250, 300, 350],
+      "APC1": [500, 550],
+      "APC2": [560, 580, 100],
+      "COBRA": [50, 150, 200, 250, 300, 350]
+    },
+    "C130": [
+      {"delay": 600, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1},
+      {"delay": 900, "troops1": 8, "passes": 1},
+      {"delay": 1000, "troops1": 8, "passes": 1}
+    ]
+  },
+  {
+    "number": 18,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [6, 5, 5, 3],
+    "lighting": "day",
+    "directions": {"COBRA": "North", "C130": "South"},
+    "waves": {
+      "TANK": [10, 20],
+      "APC1": [500, 550],
+      "APC2": [530, 500],
+      "APC3": [100, 420],
+      "COBRA": [50, 150]
+    },
+    "C130": [
+      {"delay": 50, "troops1": 8, "passes": 1},
+      {"delay": 100, "troops1": 8, "passes": 1},
+      {"delay": 200, "troops1": 8, "passes": 1},
+      {"delay": 150, "troops1": 8, "passes": 1},
+      {"delay": 250, "troops1": 8, "passes": 1},
+      {"delay": 600, "hdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 19,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 6, 5, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "JET": "South", "C130": "South"},
+    "waves": {
+      "TANK": [100, 150, 200, 250, 300, 350],
+      "APC2": [500, 500],
+      "JET": [50, 100, 150]
+    },
+    "C130": [
+      {"delay": 900, "troops1": 8, "passes": 1},
+      {"delay": 930, "troops1": 8, "passes": 1},
+      {"delay": 960, "troops1": 12, "passes": 1},
+      {"delay": 990, "troops1": 12, "passes": 1},
+      {"delay": 1200, "hdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 20,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 5, 7, 7],
+    "lighting": "day",
+    "directions": {"COBRA": "South"},
+    "waves": {
+      "COBRA": [50, 50, 60, 70, 70, 80, 80, 90, 100, 150, 200, 700]
+    },
+    "C130": []
+  },
+  {
+    "number": 21,
+    "ammo": [0, 0, 0, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 4, 6, 6],
+    "lighting": "spotlight",
+    "directions": {},
+    "waves": {
+      "CH53": [50, 60, 80]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 22,
+    "ammo": [400, 20, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 4, 6, 6],
+    "lighting": "night",
+    "directions": {"TANK": "South"},
+    "waves": {
+      "TANK": [100, 150, 180],
+      "APC1": [200, 250, 270],
+      "APC2": [190, 200]
+    },
+    "C130": []
+  },
+  {
+    "number": 23,
+    "ammo": [400, 10, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 6, 6, 6],
+    "lighting": "spotlight",
+    "directions": {"APC": "South", "COBRA": "South"},
+    "waves": {
+      "APC1": [300, 350, 360],
+      "APC2": [290, 300],
+      "COBRA": [50, 50, 60, 600, 600],
+      "CH53": [700, 750, 600, 650, 600]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 24,
+    "ammo": [400, 5, 20, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [3, 5, 3, 3],
+    "lighting": "spotlight",
+    "directions": {"JET": "South", "C130": "South"},
+    "waves": {
+      "JET": [30, 50, 80, 90, null, 120, 390, 390, 390],
+      "CH53": [600]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 25,
+    "ammo": [300, 10, 2, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [3, 6, 6, 6],
+    "lighting": "day",
+    "directions": {"C130": "South"},
+    "waves": {
+      "JET": [1300, 1300, 1300],
+      "COBRA": [3600, 3600, 3600]
+    },
+    "C130": [
+      {"delay": 100, "troops1": 6, "troops2": 4, "passes": 2},
+      {"delay": 200, "troops1": 6, "troops2": 4, "adrop": 1, "mdrop": 1, "passes": 2},
+      {"delay": 300, "troops1": 6, "hdrop": 1, "mdrop": 1, "passes": 1},
+      {"delay": 400, "troops1": 6, "troops2": 4, "adrop": 1, "pdrop": 1, "passes": 2},
+      {"delay": 600, "troops1": 4, "troops2": 4, "mdrop": 1, "hdrop": 2, "passes": 2},
+      {"delay": 200, "troops1": 8, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 26,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 4, 7, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [200, 250],
+      "APC1": [200, 250, 360],
+      "APC2": [290, 300],
+      "APC3": [300]
+    },
+    "C130": []
+  },
+  {
+    "number": 27,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 6, 6],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "APC1": [300, 350, 360],
+      "APC2": [290, 300],
+      "JET": [50, 70, 80, 100]
+    },
+    "C130": []
+  },
+  {
+    "number": 28,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South", "JET": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [710, 730, 750, 760, 770],
+      "APC1": [20, 40, 60, 80],
+      "APC2": [810, 830, 850],
+      "JET": [10, 10],
+      "COBRA": [700, 700, 700]
+    },
+    "C130": []
+  },
+  {
+    "number": 29,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "North", "JET": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [10, 30, 60, 90],
+      "APC1": [500, 550, 590],
+      "APC2": [220, 200],
+      "JET": [500, 500, 500, 600, 650],
+      "COBRA": [50, 60, 70]
+    },
+    "C130": []
+  },
+  {
+    "number": 30,
+    "ammo": [300, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [4, 5, 8, 8],
+    "lighting": "day",
+    "directions": {"C130": "South"},
+    "waves": {
+      "COBRA": [50, 50, 60, 70, 70, 80, 80, 210, 200, 250, 200]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 3, "mdrop": 3, "adrop": 3}
+    ]
+  },
+  {
+    "number": 31,
+    "ammo": [200, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"APC": "South", "JET": "South"},
+    "waves": {
+      "TANK": [20, 40, 710, 730, 1840, 1840, 1840],
+      "APC1": [10, 30, 740, 760],
+      "APC2": [40, 40, 720, 1840],
+      "JET": [60, 300, 500, 800, 1800, 1800, 1800]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 5},
+      {"delay": 3600, "troops1": 12, "passes": 1},
+      {"delay": 3620, "troops1": 12, "passes": 1},
+      {"delay": 3640, "troops1": 12, "passes": 1}
+    ]
+  },
+  {
+    "number": 32,
+    "ammo": [200, 10, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [6, 6, 6, 6],
+    "lighting": "day",
+    "directions": {"APC": "North"},
+    "waves": {
+      "TANK": [500, 520, 530, 540, 1540, 1540, 1540, 1540],
+      "APC1": [20, 40, 50, 60],
+      "APC2": [1700, 1720, 1730, 1750],
+      "APC3": [60, 10, 20, 30]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 100, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 130, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 160, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 33,
+    "ammo": [100, 6, 4, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [7, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "North"},
+    "waves": {
+      "TANK": [20, 40, 60, 80],
+      "APC1": [80, 90],
+      "APC2": [210, 260]
+    },
+    "C130": [
+      {"delay": 400, "troops1": 12},
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 34,
+    "ammo": [300, 0, 0, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 7, 6, 6],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "APC1": [400, 450, 460, 460],
+      "JET": [50, 70, 80]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 35,
+    "ammo": [200, 5, 5, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [6, 6, 6, 6],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [100, 160, 170, 3600, 3620, 5600, 5620],
+      "APC1": [1300, 1340, 3650, 3660],
+      "APC2": [500, 520, 5300, 5350],
+      "APC3": [20, 900, 2000, 3200],
+      "JET": [5300, 5200, 5000, 7000, 7150, 7200],
+      "COBRA": [50, 60, 900, 950, 2000, 2050, 2150, 4150, 4150, 6140, 6160]
+    },
+    "C130": [
+      {"delay": 9600, "troops1": 12, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 9620, "troops1": 12, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 700, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 36,
+    "ammo": [0, 0, 0, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "spotlight",
+    "directions": {"C130": "South"},
+    "waves": {},
+    "C130": [
+      {"delay": 10, "troops1": 12, "adrop": 2, "passes": 1},
+      {"delay": 600, "troops1": 8, "adrop": 2, "passes": 1}
+    ]
+  },
+  {
+    "number": 37,
+    "ammo": [300, 5, 5, 15],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 5, 5],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [10, 10, 50, 50],
+      "CH53": [1000, 1000, 1000]
+    },
+    "C130": [
+      {"delay": 120, "troops1": 8, "hdrop": 2, "passes": 1},
+      {"delay": 100, "troops1": 8, "adrop": 2, "passes": 1},
+      {"delay": 130, "troops1": 8, "mdrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 160, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 38,
+    "ammo": [0, 2, 2, 10],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [3, 4, 5, 5],
+    "lighting": "night",
+    "directions": {"C130": "South"},
+    "waves": {
+      "APC1": [50, 70, 800, 800],
+      "COBRA": [800, 800],
+      "CH53": [1200, 1200]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 39,
+    "ammo": [400, 10, 10, 15],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 4, 5, 5],
+    "lighting": "night",
+    "directions": {"TANK": "South", "APC": "South", "C130": "South"},
+    "waves": {
+      "TANK": [100, 130, 160, 190],
+      "APC1": [100, 100, 100, 100],
+      "APC2": [600, 620, 640, 660],
+      "COBRA": [60, 80]
+    },
+    "C130": [
+      {"delay": 200, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 40,
+    "ammo": [300, 0, 4, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [3, 4, 9, 9],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "COBRA": [10, 20, 20, 30],
+      "CH53": [70, 70, 80, 60, 100, 100, 150, 150]
+    },
+    "C130": []
+  },
+  {
+    "number": 41,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 7, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "APC1": [600, 650, 700, 750],
+      "APC2": [1000, 1100, 1050, 1150],
+      "JET": [null, 50, 60, 70, 200, 250, 300, 350, 600, 660, 700, 700]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2}
+    ]
+  },
+  {
+    "number": 42,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 7, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "North"},
+    "waves": {
+      "TANK": [50, 60, 400, 420, 600, 630, 800, 800],
+      "APC1": [600, 650, 700, 750],
+      "APC2": [1000, 1100, 1050, 1150],
+      "JET": [null, 50, 60, 70]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 43,
+    "ammo": [0, 0, 0, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 6, 3, 3],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "JET": [50, 60, 70, 200, 250, 400, 450]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 3, "mdrop": 3, "adrop": 3, "pdrop": 3}
+    ]
+  },
+  {
+    "number": 44,
+    "ammo": [0, 0, 0, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South"},
+    "waves": {
+      "TANK": [50, 60, 400, 420, 600, 630, 800, 800],
+      "APC1": [400, 430],
+      "APC2": [700, 710]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 4, "adrop": 4, "pdrop": 4}
+    ]
+  },
+  {
+    "number": 45,
+    "ammo": [200, 0, 7, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [3, 4, 7, 7],
+    "lighting": "day",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 50, 60, 400, 450, 600, 650]
+    },
+    "C130": [
+      {"delay": 80, "troops1": 8, "troops2": 6, "mdrop": 2, "passes": 2},
+      {"delay": 100, "troops1": 6, "troops2": 8, "adrop": 2, "passes": 2},
+      {"delay": 120, "troops1": 6, "mdrop": 2, "hdrop": 2, "passes": 2},
+      {"delay": 150, "troops1": 6, "troops2": 6, "hdrop": 2, "adrop": 2, "passes": 2},
+      {"delay": 650, "troops1": 8, "mdrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 620, "troops1": 6, "mdrop": 2, "adrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 670, "troops1": 6, "passes": 1},
+      {"delay": 430, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 46,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [4, 4, 4, 4],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [10, 10, 10],
+      "APC1": [10, 10],
+      "APC2": [20, 20],
+      "APC3": [20, 20],
+      "JET": [200, 300],
+      "COBRA": [10, 10],
+      "CH53": [10, 100]
+    },
+    "C130": []
+  },
+  {
+    "number": 47,
+    "ammo": [200, 10, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [10, 10, 10, 40, 40, 50, 60, 70],
+      "APC2": [null, null, 900, 900],
+      "JET": [600, 600, 600, 600],
+      "COBRA": [10, 10, 10, 20, 20, 30, 30, 1000, 1000, 1000, 1000, 1000]
+    },
+    "C130": [
+      {"delay": 200, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 4}
+    ]
+  },
+  {
+    "number": 48,
+    "ammo": [400, 7, 7, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [7, 4, 7, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [100, 200, 300, 400],
+      "APC1": [600, 700, 800],
+      "APC2": [900, 1000, 1100],
+      "COBRA": [200, 300, 400, 500, 600, 700]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 49,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 7, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "North"},
+    "waves": {
+      "APC1": [410, 420, 440, 400],
+      "APC2": [610, 630, 650, 670],
+      "JET": [null, 100, 200, 300, 400, 500, 600],
+      "COBRA": [600, 600, 600]
+    },
+    "C130": []
+  },
+  {
+    "number": 50,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"TANK": "East", "APC": "South", "JET": "South", "COBRA": "South", "C130": "South"},
+    "waves": {
+      "TANK": [5500, 5400, 5100, 5180, 7200, 7100, 7120, 7200, 1800, 1900, 3000, 3000],
+      "APC1": [5100, 5100, 5150, 5250],
+      "APC2": [2660, 2600, 3600, 3500],
+      "JET": [900, 900, 900, 3680, 3650, 3660, 5600, 5880, 5880, 7200, 7500, 7500, null],
+      "COBRA": [10, 10, 10, 20, 1780, 1780, 1740, 5500, 5020, 5000, 9000, 9000],
+      "CH53": [9300, 9300, 9300, 9300, 7200, 7200, 7200, 7200]
+    },
+    "C130": [
+      {"delay": 900, "hdrop": 3, "mdrop": 3, "adrop": 3, "pdrop": 3}
+    ]
+  },
+  {
+    "number": 51,
+    "ammo": [0, 2, 0, 20],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 4, 6, 6],
+    "lighting": "spotlight",
+    "directions": {"C130": "South"},
+    "waves": {
+      "TANK": [60, 65, 680, 660],
+      "APC1": [700, 750, 760]
+    },
+    "C130": [
+      {"delay": 300, "troops1": 8, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 52,
+    "ammo": [0, 0, 2, 20],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 100, 500, 500]
+    },
+    "C130": [
+      {"mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 600, "troops1": 12, "hdrop": 2, "mdrop": 2, "adrop": 2, "passes": 1}
+    ]
+  },
+  {
+    "number": 53,
+    "ammo": [300, 10, 20, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [4, 5, 8, 8],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 50, 60, 70, 70, 680, 680, 690, 300, 350, 300]
+    },
+    "C130": [
+      {"hdrop": 2, "mdrop": 2, "adrop": 2},
+      {"delay": 600, "troops1": 12, "troops2": 12, "hdrop": 2, "mdrop": 2, "adrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 54,
+    "ammo": [300, 5, 5, 20],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [3, 4, 7, 7],
+    "lighting": "spotlight",
+    "directions": {},
+    "waves": {
+      "COBRA": [10, 50, 100, 150],
+      "CH53": [70, 70, 80, 60, 500, 500, 550, 550]
+    },
+    "C130": [
+      {"hdrop": 2, "mdrop": 2, "adrop": 2}
+    ]
+  },
+  {
+    "number": 55,
+    "ammo": [300, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [3, 9, 3, 3],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "JET": [50, 60, 70, 80, 100, 260, 240, 280, 300, 420, 400, 450, 420, 400, 400]
+    },
+    "C130": [
+      {"delay": 100, "hdrop": 4, "mdrop": 4, "adrop": 4}
+    ]
+  },
+  {
+    "number": 56,
+    "ammo": [150, 5, 2, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [8, 8, 8, 8],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [700, 720, 750, 730, 750],
+      "APC1": [50, 60, 70, 80],
+      "COBRA": [1000, 1000],
+      "CH53": [30, 60]
+    },
+    "C130": [
+      {"delay": 2000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1}
+    ]
+  },
+  {
+    "number": 57,
+    "ammo": [150, 3, 5, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [8, 8, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South"},
+    "waves": {
+      "TANK": [10, 20, 50, 60, 70],
+      "APC1": [140, 150, 160, 180],
+      "JET": [300, 300],
+      "CH53": [200, 200]
+    },
+    "C130": [
+      {"delay": 700, "passes": 2}
+    ]
+  },
+  {
+    "number": 58,
+    "ammo": [100, 0, 10, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [9, 9, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "South", "C130": "South"},
+    "waves": {
+      "TANK": [800, 850, 830, 860],
+      "APC1": [140, 150, 160, 180],
+      "CH53": [200, 200]
+    },
+    "C130": [
+      {"delay": 100, "troops1": 8, "hdrop": 2, "passes": 2},
+      {"delay": 300, "troops1": 8, "troops2": 6, "passes": 2},
+      {"delay": 400, "troops1": 4, "troops2": 4, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 2},
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 59,
+    "ammo": [200, 0, 2, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"COBRA": "North", "C130": "South"},
+    "waves": {
+      "COBRA": [220, 240, 220, 250]
+    },
+    "C130": [
+      {"delay": 80, "troops2": 12, "adrop": 2, "mdrop": 2, "hdrop": 2, "passes": 2},
+      {"delay": 520, "troops2": 12, "hdrop": 2, "adrop": 2, "passes": 2},
+      {"delay": 750, "troops2": 12, "mdrop": 2, "hdrop": 2, "passes": 2},
+      {"delay": 980, "troops2": 12, "hdrop": 2, "passes": 2},
+      {"delay": 1800, "troops2": 12, "mdrop": 2, "hdrop": 2, "passes": 2},
+      {"delay": 3680, "troops2": 12, "mdrop": 2, "hdrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 60,
+    "ammo": [500, 20, 20, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [5, 6, 6, 6],
+    "lighting": "day",
+    "directions": {"TANK": "North", "APC": "West", "CH53": "South"},
+    "waves": {
+      "TANK": [50, 60, 70, 80, 90, 100],
+      "APC1": [50, 60, 65, 70],
+      "APC2": [60, 80, 90, 100],
+      "APC3": [200, null],
+      "COBRA": [10, 30, 40, 50],
+      "CH53": [100, 100, 100, 100]
+    },
+    "C130": [
+      {"hdrop": 4, "mdrop": 4, "adrop": 4, "pdrop": 4}
+    ]
+  },
+  {
+    "number": 61,
+    "ammo": [500, 8, 8, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"APC": "West", "C130": "South"},
+    "waves": {
+      "APC1": [200, 200, 200, 200],
+      "APC2": [600, 600, 600, 600]
+    },
+    "C130": [
+      {"delay": 80, "troops2": 12, "passes": 2},
+      {"delay": 120, "troops2": 12, "passes": 2},
+      {"delay": 150, "troops2": 12, "passes": 2},
+      {"delay": 180, "troops2": 12, "passes": 2},
+      {"delay": 250, "troops2": 12, "passes": 2},
+      {"delay": 220, "troops2": 12, "passes": 2}
+    ]
+  },
+  {
+    "number": 62,
+    "ammo": [200, 6, 4, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [8, 8, 8, 8],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [50, 90, 90, 700, 700],
+      "APC1": [50, 60, 750, 760],
+      "APC2": [70, null, 700, 700],
+      "JET": [700, 750, 800, 850, 780]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1}
+    ]
+  },
+  {
+    "number": 63,
+    "ammo": [200, 0, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [4, 5, 6, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "COBRA": [50, 50, 60, 70, 70, 80, 80, 90, 100, 150, 200]
+    },
+    "C130": [
+      {"delay": 100, "hdrop": 1, "mdrop": 1, "adrop": 1}
+    ]
+  },
+  {
+    "number": 64,
+    "ammo": [300, 10, 10, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [9, 7, 6, 6],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "APC1": [400, 450, 420, 430],
+      "JET": [50, 70, 80, 100, 100]
+    },
+    "C130": [
+      {"delay": 1000, "troops1": 12, "troops2": 12, "passes": 2},
+      {"delay": 1100, "troops1": 12, "troops2": 12, "passes": 2},
+      {"hdrop": 1, "mdrop": 1, "adrop": 1}
+    ]
+  },
+  {
+    "number": 65,
+    "ammo": [400, 20, 20, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 5, 5, 5],
+    "lighting": "day",
+    "directions": {"C130": "South"},
+    "waves": {
+      "TANK": [50, 60, 70, 900, 900, 1800, 1870, 3600, 3600, 5400, 5400, 7200],
+      "APC1": [920, 900, 3650, 3600],
+      "APC2": [5400, 5430, 7200, 7260],
+      "JET": [650, 1000, 2000, 4000, 6000],
+      "COBRA": [10000, 10000, 10000, 10050, 10000, 300, 300, 300, 300],
+      "CH53": [2000, 2010, 7020, 7030]
+    },
+    "C130": [
+      {"delay": 1100, "troops1": 6, "hdrop": 2},
+      {"delay": 2000, "troops1": 6, "mdrop": 2},
+      {"delay": 3050, "troops1": 6},
+      {"delay": 4000, "troops1": 8, "adrop": 2},
+      {"delay": 5030, "troops1": 8, "passes": 1},
+      {"delay": 6500, "troops1": 6, "pdrop": 2, "mdrop": 2, "adrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 7000, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 66,
+    "ammo": [300, 10, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 4, 9, 9],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South"},
+    "waves": {
+      "APC1": [1000, 1020, 1020, 1000],
+      "COBRA": [10, 20, 1000, 1000],
+      "CH53": [210, 250, 200]
+    },
+    "C130": []
+  },
+  {
+    "number": 67,
+    "ammo": [500, 20, 20, 20],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [3, 4, 6, 6],
+    "lighting": "spotlight",
+    "directions": {"C130": "South"},
+    "waves": {
+      "APC2": [30, 50]
+    },
+    "C130": [
+      {"delay": 200, "troops1": 8, "passes": 1},
+      {"delay": 320, "troops1": 8, "adrop": 2, "passes": 1},
+      {"delay": 350, "troops1": 8, "mdrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 480, "troops1": 6, "hdrop": 2, "passes": 1},
+      {"delay": 550, "troops1": 8, "hdrop": 2, "passes": 1},
+      {"delay": 420, "troops1": 8, "mdrop": 1, "hdrop": 1, "passes": 1},
+      {"delay": 770, "troops1": 6, "passes": 1},
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 68,
+    "ammo": [200, 10, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [3, 9, 3, 3],
+    "lighting": "spotlight",
+    "directions": {"JET": "South"},
+    "waves": {
+      "APC1": [200, 300, 400, 500],
+      "JET": [10, 50, 80, 200, 250, 280, 300, 350],
+      "CH53": [2000, 2000, 2000, 2000]
+    },
+    "C130": [
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 69,
+    "ammo": [400, 10, 10, 20],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [6, 6, 6, 6],
+    "lighting": "spotlight",
+    "directions": {"C130": "South"},
+    "waves": {
+      "COBRA": [200, 900, 1800, 3050, 5000, 7000, 9200, 12000]
+    },
+    "C130": [
+      {"delay": 200, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 930, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 1800, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 3620, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 5400, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 7600, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 9450, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 12000, "troops1": 12, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 70,
+    "ammo": [300, 20, 5, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "East"},
+    "waves": {
+      "TANK": [8, 5, 10, 20, 40, 40, 62, 60, 65, 160, 170, 100],
+      "APC1": [400, 420, 450, 470],
+      "APC2": [580, 530, 570, 550],
+      "APC3": [300, 300, 300, 300],
+      "CH53": [500, 500, 500, 500]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 71,
+    "ammo": [200, 3, 2, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [7, 4, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "North", "COBRA": "South", "C130": "South"},
+    "waves": {
+      "TANK": [60, 70, 740, 1160, 1170],
+      "APC1": [700, 720, 730],
+      "APC2": [1300, 1320, 1330],
+      "COBRA": [3600, 3600]
+    },
+    "C130": [
+      {"delay": 200, "hdrop": 3, "mdrop": 3, "adrop": 3, "pdrop": 3},
+      {"delay": 3650, "troops1": 12, "passes": 1},
+      {"delay": 3600, "troops1": 12, "passes": 1},
+      {"delay": 3640, "troops1": 12, "passes": 1},
+      {"delay": 3680, "troops1": 12, "passes": 1}
+    ]
+  },
+  {
+    "number": 72,
+    "ammo": [400, 0, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [3, 8, 8, 8],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "COBRA": [null, null, 80, 90, 100, 500, 550]
+    },
+    "C130": [
+      {"delay": 10, "troops1": 6, "troops2": 6, "passes": 2},
+      {"delay": 60, "troops1": 6, "troops2": 6, "adrop": 2, "passes": 2},
+      {"delay": 90, "troops1": 6, "mdrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 120, "troops1": 6, "troops2": 6, "hdrop": 1, "passes": 2},
+      {"delay": 170, "troops1": 6, "troops2": 6, "mdrop": 1, "hdrop": 1, "passes": 2},
+      {"delay": 220, "troops1": 8, "mdrop": 1, "hdrop": 2, "adrop": 2, "passes": 1},
+      {"delay": 280, "troops1": 6, "passes": 1},
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 73,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [8, 8, 8, 8],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [null, 10, 20, 30, 140, 120, 100],
+      "COBRA": [20, 50, 80]
+    },
+    "C130": [
+      {"delay": 10, "troops1": 6, "troops2": 6, "passes": 2},
+      {"delay": 60, "troops1": 6, "troops2": 6, "adrop": 2, "passes": 2},
+      {"delay": 90, "troops1": 6, "mdrop": 2, "hdrop": 2, "passes": 1},
+      {"delay": 120, "troops1": 6, "troops2": 6, "hdrop": 1, "passes": 2},
+      {"delay": 170, "troops1": 6, "troops2": 6, "mdrop": 1, "hdrop": 1, "passes": 2},
+      {"delay": 220, "troops1": 8, "mdrop": 1, "hdrop": 2, "adrop": 2, "passes": 1},
+      {"delay": 280, "troops1": 6, "passes": 1},
+      {"delay": 400, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 74,
+    "ammo": [9, 5, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 20, 20, 30],
+      "APC1": [10, 20, 30, 40],
+      "COBRA": [10, 10, 10, 10, 10]
+    },
+    "C130": []
+  },
+  {
+    "number": 75,
+    "ammo": [400, 0, 20, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [3, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "APC1": [1200, 1260, 1230, 1220],
+      "JET": [50, 60, 70, 80, 100, 260, 240, 280, 300, 420, 400, 650, 620, 600],
+      "COBRA": [3600, 3600, 3600, 3600, 3600, 3600]
+    },
+    "C130": [
+      {"delay": 100, "hdrop": 2, "mdrop": 2, "adrop": 2}
+    ]
+  },
+  {
+    "number": 76,
+    "ammo": [100, 0, 0, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"APC": "North", "C130": "South"},
+    "waves": {
+      "TANK": [3700, 3710, 3720, 3730],
+      "APC1": [3780, 3790, 3770],
+      "APC2": [3800, 3820, 3830],
+      "APC3": [3700],
+      "COBRA": [3700, 3700, 3700]
+    },
+    "C130": [
+      {"delay": 100, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 4},
+      {"delay": 2020, "troops1": 8, "passes": 1},
+      {"delay": 2050, "troops1": 8, "passes": 1},
+      {"delay": 2080, "troops1": 8, "hdrop": 2, "passes": 1},
+      {"delay": 2000, "troops1": 8, "mdrop": 1, "hdrop": 1, "passes": 1},
+      {"delay": 2090, "troops1": 8, "passes": 1},
+      {"delay": 2020, "troops1": 8, "passes": 1},
+      {"delay": 1900, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 77,
+    "ammo": [200, 0, 0, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [8, 8, 8, 8],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [2500, 2500, 2500],
+      "APC1": [900, 900, 900, 900],
+      "APC2": [1600, 1600, 1600, 1600]
+    },
+    "C130": [
+      {"delay": 10, "troops1": 12, "troops2": 12, "passes": 5},
+      {"delay": 200, "hdrop": 3, "mdrop": 3, "adrop": 3, "pdrop": 3}
+    ]
+  },
+  {
+    "number": 78,
+    "ammo": [400, 10, 0, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "APC1": [1840, 1850, 1860, 1870],
+      "APC2": [1910, 1930, 1950, 1970],
+      "COBRA": [1800, 1800, 1800, 1800, 1800, 1800]
+    },
+    "C130": [
+      {"delay": 200, "troops1": 6, "troops2": 6, "passes": 5},
+      {"delay": 100, "hdrop": 3, "mdrop": 3, "adrop": 3, "pdrop": 3}
+    ]
+  },
+  {
+    "number": 79,
+    "ammo": [50, 4, 4, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 20, 20, 1010, 1000, 1020, 1030],
+      "APC1": [10, 20, 30, 40],
+      "COBRA": [10, 10, 10, 10, 1000, 1000, 1000, 900, 900, 900, 1200, 1300]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 80,
+    "ammo": [200, 10, 10, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 20, 100, 150, 200, 250, 260, 280, 300, 320, 340, 320],
+      "APC1": [360, 350, 340, 330],
+      "APC2": [510, 530, 560, 580],
+      "APC3": [100, 300, 600, 800]
+    },
+    "C130": [
+      {"delay": 60, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 81,
+    "ammo": [300, 10, 0, 20],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "night",
+    "directions": {},
+    "waves": {
+      "TANK": [1800, 1820, 1840, 1860, 1860, null, 1860],
+      "CH53": [50, 70, 90, 310, 330, 360]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 82,
+    "ammo": [500, 10, 15, 15],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [9, 8, 8, 8],
+    "lighting": "night",
+    "directions": {},
+    "waves": {
+      "APC1": [50, 200, 440, 640],
+      "APC2": [800, 1000, 1200, 1400],
+      "JET": [1600],
+      "COBRA": [3550, 3550, 3550],
+      "CH53": [3650, 3670, 3690, 3610, 3630, 3660, 3690, 3600]
+    },
+    "C130": [
+      {"delay": 2000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 4}
+    ]
+  },
+  {
+    "number": 83,
+    "ammo": [400, 20, 20, 20],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "spotlight",
+    "directions": {"COBRA": "South", "C130": "South"},
+    "waves": {
+      "COBRA": [50, 50, 60]
+    },
+    "C130": [
+      {"delay": 180, "troops1": 6, "troops2": 6, "passes": 2},
+      {"delay": 220, "troops1": 6, "troops2": 6, "adrop": 2, "passes": 2},
+      {"delay": 250, "troops1": 6, "mdrop": 2, "hdrop": 2, "passes": 2},
+      {"delay": 280, "troops1": 6, "troops2": 6, "hdrop": 2, "passes": 2},
+      {"delay": 330, "troops1": 6, "troops2": 6, "mdrop": 1, "hdrop": 1, "passes": 2},
+      {"delay": 320, "troops1": 6, "troops2": 8, "mdrop": 1, "hdrop": 1, "passes": 2},
+      {"delay": 370, "troops1": 6, "passes": 1},
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 84,
+    "ammo": [0, 0, 0, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "spotlight",
+    "directions": {"C130": "South"},
+    "waves": {
+      "APC1": [100, 120, 140],
+      "APC2": [800, 800]
+    },
+    "C130": [
+      {"delay": 300, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 900, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 85,
+    "ammo": [500, 20, 20, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {},
+    "waves": {
+      "TANK": [50, 60, 70, 1520, 1540, 1560, 5400, 5420, 5440, 7200, 7220, 7250],
+      "APC1": [80, 90, 1550],
+      "APC2": [3000, 3000, 5000],
+      "APC3": [1000, 3000, 6000],
+      "JET": [12400, 12400, 12400],
+      "COBRA": [500, 500, 500, 1550, 1580, 1560, 8700, 8700, 8700, 10000, 10020, 10040],
+      "CH53": [9000, 10060, 12090]
+    },
+    "C130": [
+      {"delay": 900, "troops1": 4, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 1800, "troops1": 4, "passes": 1},
+      {"delay": 2700, "troops1": 5, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 3600, "troops1": 5, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 4500, "troops1": 5, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 86,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun2"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"TANK": "North", "APC": "North", "C130": "South"},
+    "waves": {
+      "TANK": [100, 120, 150, null],
+      "APC1": [150, 160, 170],
+      "APC2": [250, 320, 340, 280],
+      "APC3": [120, 280, 380, 480]
+    },
+    "C130": [
+      {"delay": 50, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 70, "troops1": 8, "passes": 1},
+      {"delay": 150, "troops1": 8, "troops2": 4, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 2},
+      {"delay": 160, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 200, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 200, "troops1": 6, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 240, "troops1": 6, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 120, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 87,
+    "ammo": [400, 20, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [3, 4, 3, 3],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South", "C130": "North"},
+    "waves": {
+      "TANK": [100, 120, 150, null],
+      "APC1": [150, 160, 170],
+      "APC2": [250, 320, 340, 280],
+      "APC3": [120, 280, 380, 480]
+    },
+    "C130": [
+      {"delay": 50, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 70, "troops1": 8, "passes": 1},
+      {"delay": 150, "troops1": 8, "troops2": 4, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 2},
+      {"delay": 160, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 200, "troops1": 8, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 200, "troops1": 6, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 240, "troops1": 6, "hdrop": 1, "mdrop": 1, "adrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 120, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 88,
+    "ammo": [400, 10, 10, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "South", "C130": "North"},
+    "waves": {
+      "TANK": [100, 320, 450, null],
+      "APC1": [550, 750],
+      "APC2": [650, 840],
+      "APC3": [880, 980]
+    },
+    "C130": [
+      {"delay": 1300, "troops1": 6, "adrop": 1, "passes": 1},
+      {"delay": 1370, "troops1": 6, "passes": 1},
+      {"delay": 1350, "troops1": 6, "hdrop": 1, "passes": 1},
+      {"delay": 1360, "troops1": 6, "hdrop": 1, "pdrop": 1, "passes": 1},
+      {"delay": 1300, "troops1": 6, "hdrop": 1, "adrop": 1, "passes": 1},
+      {"delay": 1300, "troops1": 6, "hdrop": 1, "passes": 1},
+      {"delay": 1340, "troops1": 6, "hdrop": 1, "passes": 1},
+      {"delay": 120, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 4}
+    ]
+  },
+  {
+    "number": 89,
+    "ammo": [9, 5, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 20, 20, 30],
+      "APC1": [10, 20, 30, 40],
+      "JET": [10, 10, 10, 10]
+    },
+    "C130": []
+  },
+  {
+    "number": 90,
+    "ammo": [500, 20, 20, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [7, 7, 7, 7],
+    "lighting": "day",
+    "directions": {"TANK": "North", "APC": "South", "JET": "South", "COBRA": "South"},
+    "waves": {
+      "TANK": [200, 300, 1800, 1800, 3700, 3500, 5420, 5400, 7200, 7250, 9050, 9000],
+      "APC1": [1800, 3650, 5450],
+      "APC2": [2000, 5600, 9000],
+      "APC3": [100],
+      "JET": [400, 500, 1860, 1800, 3650, 3600, 5680, 5680, 7280, 7280, 9050, 9080, 10680, 10680, 12680, 12680],
+      "COBRA": [14500, 14600, 12600, 12550, 10880, 7200, 7100, 3400, 3700, 80, 70, 60]
+    },
+    "C130": [
+      {"delay": 1800, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 3600, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 5400, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 7200, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 9000, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 10600, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 12400, "troops1": 6, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2, "passes": 1},
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 91,
+    "ammo": [50, 4, 4, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 10, 10, 1000, 1000, 1000, 1000],
+      "APC1": [10, 20, 30, 40],
+      "COBRA": [10, 10, 10, 10, 1000, 1000, 1000, 1000]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 92,
+    "ammo": [100, 5, 5, 5],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [70, 70, 760, 770],
+      "APC1": [700, 720, 730, 740],
+      "JET": [90, 100, 100, 800, 800, 800, 800, 800],
+      "COBRA": [50, 50]
+    },
+    "C130": [
+      {"delay": 200, "hdrop": 2, "mdrop": 1, "adrop": 2, "pdrop": 2, "passes": 2},
+      {"delay": 400, "hdrop": 1, "mdrop": 1, "adrop": 2, "pdrop": 2, "passes": 2}
+    ]
+  },
+  {
+    "number": 93,
+    "ammo": [400, 20, 20, 5],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 20, 20, 30, 3240, 3250, 3260, 3270, 5480, 5480, 5480],
+      "APC1": [10, 20, 3430, 3440],
+      "APC2": [4000, 4020, 4030, 4040],
+      "JET": [1200, 1200, 5400, 5400, 5400, null],
+      "COBRA": [10, 10, 10, 10, 10, 3100, 3100, 3150, 3160, 3170, 5470, 5470]
+    },
+    "C130": [
+      {"delay": 100, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 1, "pdrop": 1}
+    ]
+  },
+  {
+    "number": 94,
+    "ammo": [100, 0, 0, 0],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "day",
+    "directions": {"APC": "North", "C130": "South"},
+    "waves": {
+      "TANK": [3700, 3710, 3720, 3730, 3740, 3750],
+      "APC1": [3780, 3790, 3770, 3760],
+      "APC2": [3800, 3820, 3830, 3840],
+      "APC3": [3700],
+      "JET": [3700, 3700, 3700, 3700, 3700, 3700],
+      "COBRA": [3700, 3700]
+    },
+    "C130": [
+      {"delay": 100, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 300, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2}
+    ]
+  },
+  {
+    "number": 95,
+    "ammo": [400, 10, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "spotlight",
+    "directions": {"C130": "North"},
+    "waves": {
+      "TANK": [300, 600, 900, 1200],
+      "APC1": [100, 200, 800, 800],
+      "APC2": [1600, 1600, 2600, 2600],
+      "CH53": [10, 10, 3600, 3600, 5600, 5600]
+    },
+    "C130": [
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 7200, "troops1": 8, "hdrop": 1, "adrop": 1, "passes": 1},
+      {"delay": 7200, "troops1": 8, "hdrop": 1, "adrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 96,
+    "ammo": [400, 10, 10, 10],
+    "playerFlags": ["Crosshair", "AltGun2"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "night",
+    "directions": {"C130": "North"},
+    "waves": {
+      "APC1": [100, 200, 800, 800],
+      "APC2": [1600, 1600, 2600, 2600],
+      "CH53": [10, 10, 3600, 3600, 5600, 5600]
+    },
+    "C130": [
+      {"delay": 1000, "hdrop": 2, "mdrop": 2, "adrop": 2, "pdrop": 2},
+      {"delay": 7200, "troops1": 8, "hdrop": 1, "adrop": 1, "passes": 1},
+      {"delay": 7200, "troops1": 8, "hdrop": 1, "adrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 97,
+    "ammo": [50, 4, 4, 5],
+    "playerFlags": ["Crosshair"],
+    "aggression": [9, 9, 9, 9],
+    "lighting": "night",
+    "directions": {"APC": "West"},
+    "waves": {
+      "TANK": [10, 10, 20, 20, 1040, 1005, 1006, 1007],
+      "APC1": [10, 20, 30, 40],
+      "COBRA": [10, 10, 10, 10, 1000, 1000, 1000, 1000]
+    },
+    "C130": [
+      {"delay": 500, "hdrop": 2, "mdrop": 2, "pdrop": 1, "passes": 1}
+    ]
+  },
+  {
+    "number": 98,
+    "ammo": [400, 0, 15, 0],
+    "playerFlags": ["Crosshair", "AltGun"],
+    "aggression": [5, 9, 3, 3],
+    "lighting": "spotlight",
+    "directions": {},
+    "waves": {
+      "JET": [10, 300, 600, 900, 1200, 1500, 1800, 2100, 2300, 2600, 2900]
+    },
+    "C130": [
+      {"delay": 100, "hdrop": 2, "mdrop": 2}
+    ]
+  },
+  {
+    "number": 99,
+    "ammo": [500, 20, 20, 5],
+    "playerFlags": ["Crosshair", "Bombers", "AltGun"],
+    "aggression": [8, 8, 8, 8],
+    "lighting": "day",
+    "directions": {"TANK": "South", "APC": "East"},
+    "waves": {
+      "TANK": [510, 540, 580, 1400, 1420, 1450, 1500, 1540],
+      "APC1": [100, 130, 360],
+      "APC3": [600, 800, 900],
+      "JET": [500, 500, 500, 500, 1500, 1500, 1500, 1500, 1500],
+      "COBRA": [10, 20, 40, 60, 80, 500, 500, 500, 500],
+      "CH53": [10, null, 500, 500]
+    },
+    "C130": [
+      {"hdrop": 2, "mdrop": 1, "adrop": 1, "pdrop": 1},
+      {"delay": 200, "hdrop": 2, "mdrop": 1, "adrop": 1, "pdrop": 1},
+      {"delay": 700, "troops1": 8, "passes": 1},
+      {"delay": 730, "troops1": 8, "passes": 1},
+      {"delay": 760, "troops1": 8, "passes": 1},
+      {"delay": 780, "troops1": 8, "passes": 1}
+    ]
+  }
+]

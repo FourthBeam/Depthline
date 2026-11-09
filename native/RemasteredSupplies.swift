@@ -36,14 +36,15 @@ enum RemasteredSupplies {
             }
             install(mesh,"",style:.fabric)
             if gameID=="2000" {
-                // BH2000 reward follows a shared alternation flag, not the slot.
-                // Generic cargo markings avoid falsely labelling either slot.
+                // Coast paints each pooled box when its actual reward is released.
                 let payload=crate(kind:"GENERAL",center:.init(0,-4.50,0),size:.init(0.90,0.90,0.90))
                 install(payload,"Payload",style:.paint)
             }
         } else {
             let size:SIMD3<Float>=name=="MISSILEBOXES" ? .init(0.60,1.20,0.60):name=="AMMOBOXES" ? .init(1,0.80,1):.init(1,1,1)
             install(crate(kind:name,center:.zero,size:size),"",style:.paint)
+            let mark: DepthlineSupplyMark = ["HEALTHBOXES":.health,"AMMOBOXES":.cartridges,"PROJECTILEBOXES":.shell,"MISSILEBOXES":.missile][name]!
+            mark.paint(root,center:.zero,size:size)
         }
         return total
     }
@@ -51,7 +52,7 @@ enum RemasteredSupplies {
         var mesh=NativeDetailMesh()
         let medical=kind=="HEALTHBOXES",ammo=kind=="AMMOBOXES",missile=kind=="MISSILEBOXES"
         let body:SIMD3<Float>=medical ? .init(0.70,0.71,0.61):ammo ? .init(0.27,0.34,0.18):missile ? .init(0.31,0.36,0.35):.init(0.46,0.40,0.23)
-        let trim=SIMD3<Float>(0.20,0.24,0.18),ink=medical ? SIMD3<Float>(0.10,0.47,0.39):SIMD3<Float>(0.73,0.68,0.43)
+        let trim=SIMD3<Float>(0.20,0.24,0.18)
         mesh.beveledBox(center:center,size:size,bevel:0.035,color:body)
         mesh.beveledBox(center:center + .init(0,size.y*0.48,0),size:.init(size.x+0.018,0.075,size.z+0.018),bevel:0.012,color:body*0.88)
         for side:Float in [-1,1] {
@@ -63,26 +64,6 @@ enum RemasteredSupplies {
             mesh.cylinder(from:center + .init(xx,0.11,-0.13),to:center + .init(xx,0.11,0.13),radius:0.021,sides:10,color:trim)
             for z:Float in [-0.13,0.13] {mesh.cylinder(from:center + .init(xx,0.11,z),to:center + .init(xx,0.02,z),radius:0.017,sides:8,color:trim)}
             mesh.beveledBox(center:center + .init(side*size.x*0.26,size.y*0.36,-size.z*0.52),size:.init(0.075,0.11,0.025),bevel:0.008,color:trim)
-        }
-        let face=center+SIMD3(0,0,-size.z*0.50-0.022),scale=min(size.x,size.y)
-        if medical {
-            // Original teal reserve badge: a hexagonal plate and one inset
-            // horizontal indicator. No medical-service cross or insignia.
-            let outline:[SIMD3<Float>]=[
-                .init(0,0.24,0),.init(-0.21,0.12,0),.init(-0.21,-0.12,0),
-                .init(0,-0.24,0),.init(0.21,-0.12,0),.init(0.21,0.12,0)
-            ]
-            mesh.plate(outline.map{face+$0*scale},thickness:.init(0,0,0.018),color:ink)
-            mesh.box(center:face + .init(0,0,-0.014),size:.init(0.20*scale,0.045*scale,0.012),color:.init(0.78,0.84,0.72))
-        } else if ammo || kind=="PROJECTILEBOXES" || missile {
-            let count=ammo ? 3:missile ? 1:2
-            for i in 0..<count {
-                let x=(Float(i)-Float(count-1)*0.5)*0.15*scale
-                mesh.box(center:face + .init(x,-0.03*scale,0),size:.init(0.075*scale,0.26*scale,0.018),color:ink)
-                mesh.plate([face + .init(x-0.0375*scale,0.10*scale,0),face + .init(x+0.0375*scale,0.10*scale,0),face + .init(x,0.22*scale,0)],thickness:.init(0,0,0.018),color:ink)
-            }
-        } else {
-            for i in 0..<3 {mesh.box(center:face + .init(0,(Float(i)-1)*0.10,0),size:.init(0.32,0.035,0.018),color:ink)}
         }
         return mesh
     }
@@ -117,7 +98,7 @@ func testRemasteredSupplies() throws {
     }
     for kind in ["HealthBoxes","AmmoBoxes","ProjectileBoxes","MissileBoxes"] {
         let root=SCNNode();let count=RemasteredSupplies.apply(to:root,type:kind,gameID:"2002")
-        try check(count>100 && root.childNodes.count==1,"Crate should be one opaque batched draw")
+        try check(count>100 && root.childNode(withName:"cargo-stencil",recursively:false)?.childNodes.count==4,"Each crate needs a visible stencil on every side")
     }
     print("PASS remastered supplies: one canopy layer, source payload linkage, independent crate silhouettes, idempotence")
 }

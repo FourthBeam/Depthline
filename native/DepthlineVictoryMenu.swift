@@ -20,6 +20,10 @@ final class DepthlineVictoryMenu: NSView {
         setAccessibilityRole(.group)
         setAccessibilityIdentifier("gameplay-victory")
 
+        for label in [sectorLabel, heading] {
+            label.isEditable = false
+            label.isSelectable = false
+        }
         sectorLabel.alignment = .center
         sectorLabel.font = .systemFont(ofSize: 15, weight: .semibold)
         sectorLabel.textColor = NSColor(srgbRed: 0.92, green: 0.80, blue: 0.54, alpha: 1)
@@ -38,6 +42,9 @@ final class DepthlineVictoryMenu: NSView {
         ] {
             button.isBordered = false
             button.setButtonType(.momentaryPushIn)
+            button.focusRingType = .none
+            button.cell?.isEditable = false
+            button.cell?.isSelectable = false
             button.target = self
             button.action = action
             button.setAccessibilityIdentifier(identifier)
@@ -51,6 +58,17 @@ final class DepthlineVictoryMenu: NSView {
 
     required init?(coder: NSCoder) { fatalError("Programmatic victory menu") }
 
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        guard let hit = super.hitTest(point) else { return nil }
+        // Keep the AppKit field editor out of the result card. Only the two
+        // buttons handle mouse input; labels remain readable to VoiceOver.
+        return hit === sectorLabel || hit === heading ? self : hit
+    }
+
+    override var mouseDownCanMoveWindow: Bool { false }
+    override func mouseDown(with event: NSEvent) {}
+    override func mouseUp(with event: NSEvent) {}
+
     func show(sector: String, completedLevel: Int) {
         present(sector: sector, title: DLoc.text("第 \(completedLevel) 关完成", "Mission \(completedLevel) Complete"),
                 action: DLoc.text("继续下一关", "Continue to Next Mission"))
@@ -62,19 +80,28 @@ final class DepthlineVictoryMenu: NSView {
                 action: DLoc.text("进入海岸战区", "Enter Coastal Sector"))
     }
 
-    private func present(sector: String, title: String, action: String) {
+    func showSectorCompletion(sector: String) {
+        present(sector: sector, title: DLoc.text("战区通关", "Sector Complete"), action: nil)
+    }
+
+    private func present(sector: String, title: String, action: String?) {
         if heading.stringValue != title || sectorLabel.stringValue != sector {
             sectorLabel.stringValue = sector
             heading.stringValue = title
-            next.title = action
-            next.setAccessibilityLabel(action)
+            next.isHidden = action == nil
+            next.title = action ?? ""
+            next.setAccessibilityLabel(next.title)
+            next.keyEquivalent = action == nil ? "" : "\r"
+            launcher.keyEquivalent = action == nil ? "\r" : ""
+            launcher.primary = action == nil
+            needsLayout = true
             launcher.title = DLoc.text("返回游戏选择", "Return to Sector Select")
             launcher.setAccessibilityLabel(launcher.title)
             setAccessibilityLabel(DLoc.text("\(sector)，\(title)", "\(sector), \(title)"))
         }
         if isHidden {
             isHidden = false
-            window?.makeFirstResponder(next)
+            window?.makeFirstResponder(action == nil ? launcher : next)
         }
     }
 
@@ -97,7 +124,7 @@ final class DepthlineVictoryMenu: NSView {
         let labelX = r.minX + 15, labelWidth = r.width - 30
         sectorLabel.frame = NSRect(x: labelX, y: r.minY + 24, width: labelWidth, height: 23)
         heading.frame = NSRect(x: labelX, y: r.minY + 50, width: labelWidth, height: 40)
-        for (index, button) in [next, launcher].enumerated() {
+        for (index, button) in [next, launcher].filter({ !$0.isHidden }).enumerated() {
             button.frame = NSRect(x: r.minX + 35, y: r.minY + 108 + CGFloat(index) * 52,
                                   width: r.width - 70, height: 43)
         }

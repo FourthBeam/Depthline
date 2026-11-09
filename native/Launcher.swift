@@ -62,7 +62,7 @@ class LauncherButton: NSButton {
     override func mouseEntered(with event: NSEvent) { hovered = true; needsDisplay = true }
     override func mouseExited(with event: NSEvent) { hovered = false; needsDisplay = true }
     func drawFocus() {
-        guard window?.firstResponder === self else { return }
+        guard focusRingType != .none, window?.firstResponder === self else { return }
         NSColor.keyboardFocusIndicatorColor.setStroke()
         let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 0.7, dy: 0.7), xRadius: 9, yRadius: 9)
         outline.lineWidth = 2; outline.stroke()
@@ -145,7 +145,8 @@ final class LauncherActionButton: LauncherButton {
     override func draw(_ dirtyRect: NSRect) {
         let r = bounds.insetBy(dx: 1.5, dy: 1.5)
         let fill = primary ? LauncherPalette.accent : NSColor(calibratedRed: 0.08, green: 0.11, blue: 0.12, alpha: 0.95)
-        let highlight = isHighlighted ? 0.21 : (hovered || showsSelection ? 0.10 : 0)
+        let focusedWithoutRing = focusRingType == .none && window?.firstResponder === self
+        let highlight = isHighlighted ? 0.21 : (hovered || showsSelection || focusedWithoutRing ? 0.10 : 0)
         let background = fill.blended(withFraction: highlight, of: .white) ?? fill
         (isEnabled ? background : LauncherPalette.panel).setFill()
         let radius: CGFloat = image == nil ? 7 : 11

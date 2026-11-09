@@ -373,6 +373,7 @@ final class GameView: SCNView {
     override func keyDown(with event:NSEvent) {
         InteractiveInputTrace.record("key-down", ["code": event.keyCode, "flags": event.modifierFlags.rawValue, "repeat": event.isARepeat])
         if event.keyCode == 37 && event.modifierFlags.contains(.command) { game?.onReturnToLauncher?(); return }
+        if game?.isPlayingVictoryEffects == true { return }
         if let game, game.isShowingVictoryChoice {
             if [36, 76].contains(event.keyCode), !event.isARepeat {
                 game.continueAfterVictoryChoice()
@@ -462,6 +463,8 @@ final class Game {
     }()
     let ambient=SCNNode(),sun=SCNNode(),spotlight=SCNNode()
     let muzzleLamp=SCNNode()
+    var emplacementCover: DepthlineCover?
+    lazy var coverImpacts = DepthlineCoverImpacts(parent: scene.rootNode)
     private var muzzlePulse:(action:OriginalFireAction,token:OriginalEffectsRenderer.Token)?
     private(set) var visualLight = DepthlineLight.day
     var night=false
@@ -497,6 +500,10 @@ final class Game {
     var onRunEnded: ((Int, Int, UUID) -> Void)?
     var onSectorCompleted: (() -> Void)?
     private(set) var pendingNextLevel: Int?
+    private enum VictoryDestination { case mission(Int), sectorComplete, trainingComplete }
+    private var victoryAfterEffects: VictoryDestination?
+    var isPlayingVictoryEffects: Bool { victoryAfterEffects != nil }
+    private(set) var didCompleteCampaign = false
     var runID = UUID()
     var resultRecorded = false
     // 29 ms is a deliberate Mac pacing policy derived from the 2002 limiter,
@@ -508,6 +515,7 @@ final class Game {
     var globalAITick: Int { originalClock.ticks }
     var pendingEnemyEmitters: [OriginalEnemyAI] = []
     var pendingBomberDrops: [Original2002BomberAI.Update] = []
+    private var trainingBomberRandom: [OriginalEnemyAI.Random]?
     var infantryLandedThisTick = Set<Int>()
     var supply2000: Beach2000Supply?
     var supply2002: Beach2002Supply?
@@ -536,7 +544,16 @@ final class Game {
         }
     }
     var supplyMessageUntil = 0.0
-    var enemies:[Enemy]=[]
+    var enemies: [Enemy] = [] {
+        didSet { cachedProjectileTargets = nil }
+    }
+    private var cachedProjectileTargets: ProjectileTargets?
+    var projectileTargets: ProjectileTargets {
+        if let cachedProjectileTargets { return cachedProjectileTargets }
+        let targets = ProjectileTargets(enemies, sourceID: originalObjectIndex)
+        cachedProjectileTargets = targets
+        return targets
+    }
     var waves:[Wave]=[]
     var spawned=0, level=0
     var elapsed:Double=0, lastFire:Double = -10, previousTime:Double=0
@@ -594,7 +611,7 @@ final class Game {
             }
         }
         assets.graphics.configureScene(scene,camera:camera.camera!,sun:sun)
-        DepthlineEnvironment.install(in:scene,gameID:assets.gameID,
+        emplacementCover = DepthlineEnvironment.install(in:scene,gameID:assets.gameID,
             shoreline:assets.shoreline.map { field in { x in Float(field.z(at:Double(x))) } },ground:assets.height)
         if assets.isDepthline && assets.gameID == "2002" { DepthlineHills.install(in:scene,ground:assets.height) }
         // Original weapon mount is world Y800, eye Y820. Pitch does not rotate
@@ -605,7 +622,10 @@ final class Game {
         timer=Timer.scheduledTimer(withTimeInterval:1.0/60.0,repeats:true) { [weak self] _ in self?.tick() }
     }
     func stop() {
+        coverImpacts.clear()
+        victoryAfterEffects = nil
         pendingNextLevel = nil
+        didCompleteCampaign = false
         timer?.invalidate(); timer=nil; shooting=false; sound.stopAll()
         view.mouseCapture.release(); bulletEffects.clear(); _=projectiles.clear();enemyOrdnance.clear()
         effects.clear();fragments.clear();burningTokens.removeAll()
@@ -613,7 +633,9 @@ final class Game {
     }
     deinit { timer?.invalidate() }
     func restart(level startLevel: Int = 0, score: Int = 0, usedCheats:Bool=false) {
+        victoryAfterEffects = nil
         pendingNextLevel = nil
+        didCompleteCampaign = false
         view.mouseCapture.release()
         entryPrompt.reset()
         resumeWithCapture = false
@@ -630,12 +652,12 @@ final class Game {
         captureForPlayIfFullscreen()
     }
     var levelDefinition: [String:Any]? {
-        let logical=level+1
-        let source=assets.isDepthline ? (max(1,logical)-1)%assets.levels.count+1 :
-            (assets.gameID == "2000" ? (logical>60 ? logical%10+51:logical) : (logical>=100 ? logical%10+91:logical))
+        let source = OriginalCampaign.sourceLevel(gameID: assets.gameID, level: level + 1,
+                                                  finite: assets.isDepthline)
         return assets.levels.first {($0["number"] as? Int)==source}
     }
     private func loadLevel(saveCheckpoint: Bool = true) {
+        coverImpacts.clear()
         isInvulnerable = false
         if assets.shoreline != nil {assets.graphics.updateWakes([])}
         bulletEffects.clear(); _=projectiles.clear();enemyOrdnance.clear()
@@ -647,7 +669,7 @@ final class Game {
         enemies.forEach {$0.node.removeFromParentNode()};enemies=[]
         supplyNodes.values.forEach {$0.removeFromParentNode()};supplyNodes=[:]
         campaign=nil;supply2000=nil;supply2002=nil;original2000AI=nil;aircraft2000=nil
-        bombers=[];bomberSources=[:];waves=[];nextTrooperOrdinal=0
+        bombers=[];trainingBomberRandom=nil;bomberSources=[:];waves=[];nextTrooperOrdinal=0
         barrage=nil;pendingBomberSupport=false;pendingEnemyShots=[];pendingGrenades=[];pendingOrdnance=[];pendingEnemyEmitters=[];pendingBomberDrops=[]
         flares=OriginalFlares();flareNodes.forEach {$0.removeFromParentNode()};flareNodes=[]
         if let training {
@@ -704,13 +726,8 @@ final class Game {
             let declaration=(data["objects"] as? [[String:Any]] ?? []).first {($0["type"] as? String)=="C130"}
             supply2000=Beach2000Supply(delay:declaration?["delay"] as? Int ?? 0,initialMachineGunAmmo:weapons.ammo.machineGun,cargoDescent:assets.isDepthline ? .depthlineCargo : .original)
         } else {
-            var declarations:[Beach2002Supply.Declaration]=[]
             let raw=data["objects"] as? [[String:Any]] ?? []
-            for (index,item) in raw.enumerated() where (item["type"] as? String)=="C130" {
-                func n(_ key:String,_ fallback:Int=0)->Int {item[key] as? Int ?? fallback}
-                declarations.append(.init(sourceIndex:index,slot:declarations.count,delay:item["delay"] as? Int,passes:n("passes",127),
-                    far:n("far")>0 || (item["far"] as? Bool ?? false),troops1:n("troops1"),troops2:n("troops2"),hdrop:n("hdrop"),adrop:n("adrop"),pdrop:n("pdrop"),mdrop:n("mdrop")))
-            }
+            let declarations = Beach2002Supply.declarations(from: raw)
             let name=(data["groupDirections"] as? [String:String])?["C130"] ?? "Random"
             let direction:Beach2002Supply.Direction=["North":.north,"South":.south,"East":.east,"West":.west][name] ?? .random
             supply2002=Beach2002Supply(declarations:declarations,direction:direction,cargoDescent:assets.isDepthline ? .depthlineCargo : .original);nextTrooperOrdinal=0
@@ -718,17 +735,44 @@ final class Game {
         for event in campaign?.takeInitialSpawns() ?? [] { spawn(event) }
         if saveCheckpoint { onCheckpoint?(level+1,combat.score) }
     }
-    private func completeMission(nextLevel: Int, bonus: Int) {
-        pendingNextLevel = nextLevel
-        combat.score += bonus
-        // The same next-level checkpoint applies to both menu choices, even if
-        // the app closes before the player chooses.
-        onCheckpoint?(nextLevel, combat.score)
-        if level + 1 == assets.levels.count { onSectorCompleted?() }
-        resumeWithCapture = view.mouseCapture.isCaptured
+    func completeTraining() {
+        confirmVictory(.trainingComplete)
+    }
+
+    private func confirmVictory(_ destination: VictoryDestination, bonus: Int = 0) {
+        // Commit the win on its simulation tick, even if the app closes during the last explosion.
+        victoryAfterEffects = destination
+        inputLocked = true
         shooting = false
-        sound.stopAll()
+        combat.score += bonus
+        switch destination {
+        case .sectorComplete:
+            didCompleteCampaign = true
+            resultRecorded = true
+            onRunEnded?(level + 1, combat.score, runID)
+        case .mission(let next):
+            onCheckpoint?(next, combat.score)
+        case .trainingComplete:
+            onSectorCompleted?()
+        }
+        sound.updateEngines([])
+        resumeWithCapture = view.mouseCapture.isCaptured
         view.mouseCapture.release()
+        if !assets.isDepthline || !hasPendingVictoryEffects {
+            presentVictory()
+        } else {
+            refreshBattleOverlays()
+        }
+    }
+
+    private func presentVictory() {
+        guard let destination = victoryAfterEffects else { return }
+        victoryAfterEffects = nil
+        switch destination {
+        case .sectorComplete: finished = true
+        case .mission(let next): pendingNextLevel = next
+        case .trainingComplete: break
+        }
         refreshBattleOverlays()
     }
 
@@ -745,17 +789,7 @@ final class Game {
         previousTime = CACurrentMediaTime()
     }
     func configureWeapons(_ data:[String:Any]) {
-        let ammo=data["ammo"] as? [Int] ?? []
-        func amount(_ i:Int)->Int {ammo.indices.contains(i) ? ammo[i] : 0}
-        let flags=data["flags"] as? [String] ?? []
-        let unlimited=weapons.unlimitedAmmo2002
-        weapons=OriginalWeaponState(version:assets.gameID == "2000" ? .beach2000 : .beach2002,
-            machineGunAmmo:amount(0),cannonAmmo:amount(1),missileAmmo:amount(2),flareAmmo:amount(3),
-            supportAvailable:assets.gameID == "2000" ? (data["artillery"] as? Int ?? 0)>0 : flags.contains("Bombers"),
-            machineGunVariant:campaign?.machineGunVariant ?? 0,
-            phaseCounter:weapons.phaseCounter,singleShotLatched:weapons.singleShotLatched)
-        weapons.unlimitedAmmo2002=unlimited
-        weapons.prepareMissileSlots()
+        weapons.loadMission(data, machineGunVariant: campaign?.machineGunVariant ?? 0)
         syncWeaponModel()
     }
     func syncWeaponModel() {
@@ -763,9 +797,13 @@ final class Game {
         weaponPresentation.sync(selected:weapons.selected,machineGunVariant:weapons.machineGunVariant,cannonVariant:weapons.cannonVariant)
     }
     var isBattleFullScreen: Bool { view.window?.styleMask.contains(.fullScreen) == true }
-    var isShowingVictoryChoice: Bool { pendingNextLevel != nil || training?.stage == .complete }
+    var isShowingVictoryChoice: Bool {
+        !isPlayingVictoryEffects && (didCompleteCampaign || pendingNextLevel != nil || training?.stage == .complete)
+    }
     func continueAfterVictoryChoice() {
-        if training?.stage == .complete { onEnterCoast?() }
+        guard isShowingVictoryChoice else { return }
+        if didCompleteCampaign { onReturnToLauncher?() }
+        else if training?.stage == .complete { onEnterCoast?() }
         else { continueToNextLevel() }
     }
     var acceptsBattleInput: Bool {
@@ -774,9 +812,11 @@ final class Game {
     func refreshBattleOverlays() {
         let hideMenu = !paused || training?.guideOpen == true || isShowingVictoryChoice
         if pauseMenu.isHidden != hideMenu { pauseMenu.isHidden = hideMenu }
-        if pendingNextLevel != nil {
+        if didCompleteCampaign && !isPlayingVictoryEffects {
+            victoryMenu.showSectorCompletion(sector: DepthlineIdentity.sector(assets.gameID))
+        } else if pendingNextLevel != nil {
             victoryMenu.show(sector: DepthlineIdentity.sector(assets.gameID), completedLevel: level + 1)
-        } else if training?.stage == .complete {
+        } else if training?.stage == .complete && !isPlayingVictoryEffects {
             victoryMenu.showTrainingCompletion()
         } else {
             victoryMenu.hide()
@@ -792,7 +832,7 @@ final class Game {
         if isBattleFullScreen { captureForPlay() }
     }
     func togglePause() {
-        guard !isShowingVictoryChoice else { return }
+        guard !isPlayingVictoryEffects, !isShowingVictoryChoice else { return }
         shooting = false
         input.resetCursor()
         if paused {
@@ -823,7 +863,7 @@ final class Game {
         onSettingsChanged?(settings)
     }
     func applyCheat(_ key:Int) {
-        guard assets.gameID=="2002", !finished, !isShowingVictoryChoice, (1...3).contains(key) else {return}
+        guard assets.gameID=="2002", !finished, !isPlayingVictoryEffects, !isShowingVictoryChoice, (1...3).contains(key) else {return}
         markCurrentRunAssisted()
         if key==1 {weapons.unlimitedAmmo2002.toggle()}
         if key==2 {
@@ -841,6 +881,7 @@ final class Game {
             ? Beach2000Motion(type:wave.type,index:wave.slot)
             : EnemyMotion(type:wave.type,index:index,direction:wave.direction)
         let e=Enemy(node:node,type:wave.type,flying:motion.flying,motion:motion)
+        e.slot = wave.slot
         e.cargoFamily = wave.cargoFamily
         if assets.gameID == "2000" && ["C130","BOMBER"].contains(wave.type) { e.required=false }
         e.updateMotion(assets:assets)
@@ -867,7 +908,7 @@ final class Game {
         }
         spawn(Wave(type:event.type,declaredDelay:0,time:0,direction:event.direction,slot:event.slot,cargoFamily:event.cargoFamily),index:event.slot)
         guard let enemy=enemies.last else {return}
-        enemy.sourceIndex=event.sourceIndex;enemy.slot=event.slot;enemy.force=event.force;enemy.required=event.force>0
+        enemy.sourceIndex=event.sourceIndex;enemy.force=event.force;enemy.required=event.force>0
         if assets.gameID=="2002" {
             enemy.originalAI=OriginalEnemyAI(type:event.type,slot:event.slot,direction:event.direction,aggression:levelDefinition?["aggression"] as? [Int] ?? [])
             if event.type == "COBRA" || event.type == "CH53" {
@@ -886,9 +927,10 @@ final class Game {
     func damageWeapon(_ kind:OriginalProjectileKind)->OriginalDamageWeapon {
         kind.missileSlot != nil ? .missile:kind.isCannon ? .cannon:.bullet
     }
+    private static let coastObjectBases = ["BARGE":11,"TANK":37,"APC1":61,"BOMBER":73,"JET":76,"COBRA":88,"CH53":106,"C130":207,"INFANTRY":139]
+    private static let hillsObjectBases = ["TANK":37,"APC1":73,"APC2":77,"APC3":81,"JET":117,"BOMBER":133,"COBRA":142,"CH53":178,"C130":210,"INFANTRY":358]
     func originalObjectIndex(_ enemy:Enemy)->Int? {
-        let base=assets.gameID=="2000" ? ["BARGE":11,"TANK":37,"APC1":61,"BOMBER":73,"JET":76,"COBRA":88,"CH53":106,"C130":207,"INFANTRY":139][enemy.type]
-            : ["TANK":37,"APC1":73,"APC2":77,"APC3":81,"JET":117,"BOMBER":133,"COBRA":142,"CH53":178,"C130":210,"INFANTRY":358][enemy.type]
+        let base = version == .beach2000 ? Self.coastObjectBases[enemy.type] : Self.hillsObjectBases[enemy.type]
         return base.map {$0+enemy.slot}
     }
     func fire(_ action:OriginalFireAction) {
@@ -906,11 +948,27 @@ final class Game {
             let offset=depthlineGunOffset
             muzzle=SCNVector3(launch.x*0.01+offset.x,launch.y*0.01+offset.y,launch.z*0.01+offset.z)
         }
-        let direction = playerShotDirection(for: action, muzzle: muzzle, forward: forward)
-        guard projectiles.spawn(action,from:muzzle,direction:direction) else {return}
+        var barrelObstructed = false
+        if assets.isDepthline, action.weapon == .machineGun, let profile = action.ballistic {
+            if let breech = basis.breech {
+                barrelObstructed = emplacementCover?.firstHit(from: SIMD3<Float>(breech), to: SIMD3<Float>(muzzle)) != nil
+            }
+            let shot = machineGunLaunch(for: action, muzzle: SIMD3<Float>(muzzle),
+                                        barrelObstructed: barrelObstructed, profile: profile)
+            guard projectiles.spawn(action, from: SCNVector3(shot.origin), direction: SCNVector3(shot.direction),
+                                    deferTracer: shot.corrected) else { return }
+            if barrelObstructed {
+                if let pulse = muzzlePulse { effects.remove(pulse.token); muzzlePulse = nil }
+                muzzleLamp.isHidden = true
+                muzzleLamp.light?.intensity = 0
+            }
+        } else {
+            let direction = playerShotDirection(for: action, muzzle: muzzle, forward: forward)
+            guard projectiles.spawn(action,from:muzzle,direction:direction) else {return}
+        }
         combat.shots+=1;lastFire=elapsed
         let sourceMuzzle=SIMD3<Double>(muzzle.x*100,muzzle.y*100,muzzle.z*100)
-        if let token=effects.emitGunFlash(action:action,muzzle:sourceMuzzle),assets.isDepthline {
+        if !barrelObstructed, let token=effects.emitGunFlash(action:action,muzzle:sourceMuzzle),assets.isDepthline {
             if let old=muzzlePulse {effects.remove(old.token)}
             muzzlePulse=(action,token)
             updateMuzzleFeedback()
@@ -947,11 +1005,23 @@ final class Game {
         flares.launch(position:.init(Float(p.x*100),Float(p.y*100),Float(p.z*100)),direction:.init(Float(d.x),Float(d.y),Float(d.z)),pitchDegrees:Float(camera.eulerAngles.x*180 / .pi))
         playSound("Missile")
     }
-    func requestSupport() {
-        guard !paused,!inputLocked,combat.health>0,let action=weapons.consumeSupport() else {return}
-        if action == .beach2000GroundBarrage {barrage=Original2000BarrageState();playSound("Radio")}
-        else {
-            bomberHeading=Original2002BomberAI.supportHeading(random15:{Int(self.random.next())})
+    func requestSupport(_ trainingRequest: OriginalSupportAction? = nil) {
+        guard !paused,!inputLocked,combat.health>0 else {return}
+        let available: OriginalSupportAction?
+        if let training { available = training.consumeSupport(trainingRequest) }
+        else { available = weapons.consumeSupport() }
+        guard let action = available else { return }
+        if action == .beach2000GroundBarrage {
+            barrage = Original2000BarrageState(impactArea: training == nil ? nil : DepthlineTrainingSupport.artilleryArea)
+            playSound("Radio")
+        } else {
+            if training != nil {
+                trainingBomberRandom = DepthlineTrainingSupport.bomberRandomStreams()
+                bombers = (0..<9).map { Original2002BomberAI(slot: $0) }
+                bomberHeading = DepthlineTrainingSupport.bomberHeading
+            } else {
+                bomberHeading = Original2002BomberAI.supportHeading(random15: { Int(self.random.next()) })
+            }
             bombers.forEach {$0.activate()}
         }
     }
@@ -991,15 +1061,19 @@ final class Game {
     }
     func hitCandidates(_ sweep:OriginalProjectileSweep)->[OriginalProjectileHit] {
         var hits:[OriginalProjectileHit]=[]
+        let playerMachineGun = assets.isDepthline && sweep.kind == .ballistic(.machineGun)
+        if playerMachineGun, let body = depthlineInfantryContact(sweep) { hits.append(body) }
         for enemy in enemies where !enemy.node.isHidden {
             if enemy.type=="INFANTRY" {
+                if playerMachineGun { continue } // The animated body already supplied its first contact.
                 if assets.gameID=="2000",(21...25).contains(enemy.aiState) {continue}
                 if assets.gameID=="2002",enemy.aiState<2 {continue}
             }
-            // A hills vehicle can shield the infantry behind it at any elevation.
+            // A solid hull can shield a soldier on either side of the old
+            // fixed world-height cutoff, including aircraft close to a slope.
             let armoredCover = assets.isDepthline && sweep.kind.isCannon &&
                 (enemy.type == "TANK" || enemy.type.hasPrefix("APC") || enemy.type == "BARGE")
-            let eligible: OriginalHitEligibility = armoredCover ? .collisionVolumes :
+            let eligible: OriginalHitEligibility = playerMachineGun || armoredCover ? .collisionVolumes :
                 OriginalDamage.eligibility(version:version,weapon:damageWeapon(sweep.kind),type:enemy.type,sourceY:Float(sweep.end.y*100))
             guard eligible.blocksProjectile else {continue}
             if case .endpointRadius(let radius)=eligible {
@@ -1018,7 +1092,8 @@ final class Game {
             let chute=assets.gameID=="2000" ? (212...213).contains(id):(294..<358).contains(id)
             guard plane || chute else {continue}
             let type=plane ? "C130":"Parachute"
-            let eligible=OriginalDamage.eligibility(version:version,weapon:damageWeapon(sweep.kind),type:type,sourceY:Float(sweep.end.y*100))
+            let eligible: OriginalHitEligibility = playerMachineGun ? .collisionVolumes :
+                OriginalDamage.eligibility(version:version,weapon:damageWeapon(sweep.kind),type:type,sourceY:Float(sweep.end.y*100))
             guard eligible.blocksProjectile else {continue}
             if case .endpointRadius(let radius)=eligible {
                 let p=node.position
@@ -1126,7 +1201,8 @@ final class Game {
     }
     func applySplash(at position:SCNVector3,weapon:OriginalDamageWeapon,directTarget:SCNNode?=nil) {
         guard let profile=OriginalDamage.splashProfile(version:version,weapon:weapon) else {return}
-        explode(position)
+        let effect = explode(position)
+        if weapon == .artillery { training?.noteSupportImpact(effect) }
         for enemy in enemies where enemy.type=="INFANTRY" && !enemy.node.isHidden {
             if assets.isDepthline && weapon == .cannon && !exposedToDepthlineShell(enemy) { continue }
             let p=enemy.node.position
@@ -1186,6 +1262,11 @@ final class Game {
             let n=node(chute.objectID,chute.objectID==212 ? "Parachute1":"Parachute2")
             n.isHidden = !chute.visible;n.position=SCNVector3(chute.position.x*0.01,chute.position.y*0.01,chute.position.z*0.01)
             n.eulerAngles=SCNVector3(chute.pitch*Float.pi/180,chute.yaw*Float.pi/180,0)
+            if assets.isDepthline, chute.visible, let mark = DepthlineSupplyMark.coast(chute.reward) {
+                if let cargo = n.childNode(withName:"RemasteredSupplyPayload",recursively:false) {
+                    mark.paint(cargo,center:.init(0,-4.50,0),size:.init(repeating:0.90))
+                }
+            }
         }
     }
     func updateSupply2002() {
@@ -1264,15 +1345,16 @@ final class Game {
             if payload.kind.rawValue == 4 {_=RemasteredInfantry.update(n,gameID:"2002",state:1,frame:230,direction:.init(0,0,-1))}
         }
     }
-    func explode(_ position:SCNVector3) {
+    @discardableResult
+    func explode(_ position:SCNVector3) -> OriginalEffectsRenderer.Token? {
         let ground=assets.pointHeight(x:position.x,z:position.z)
         let water = assets.shoreline.map { Double(position.z) < $0.z(at:Double(position.x)) } ?? (assets.gameID=="2000" && ground<0)
         let kind:OriginalEffectKind=position.y>ground+1 ? .explosion : water ? .waterSplash:.groundExplosion
-        effects.emit(kind,at:.init(Double(position.x*100),Double(position.y*100),Double(position.z*100)))
+        return effects.emit(kind,at:.init(Double(position.x*100),Double(position.y*100),Double(position.z*100)))
     }
     func tick() {
         let now=CACurrentMediaTime();let dt=min(0.15,max(0,now-previousTime));previousTime=now
-        guard !paused, !finished, !isShowingVictoryChoice else {hud.needsDisplay=true;return}
+        guard !paused, !finished, !isShowingVictoryChoice else { return }
         logicalAccumulator += dt
         while logicalAccumulator >= Self.logicalStep {
             logicalAccumulator -= Self.logicalStep
@@ -1288,6 +1370,11 @@ final class Game {
         elapsed += dt;logicalTick += 1
         hud.damageFlash=max(0,hud.damageFlash-CGFloat(dt)*8)
         defer { originalClock.advance();updateMuzzleFeedback() }
+        if isPlayingVictoryEffects {
+            advanceVictoryEffects()
+            if !hasPendingVictoryEffects { presentVictory() }
+            return
+        }
         syncGunPose()
         training?.advance(in:self)
         if combat.health>0 {
@@ -1298,6 +1385,7 @@ final class Game {
             syncSupplyNodes()
             flushPendingInfantryGrenades()
             updateOriginalSharedProjectiles()
+            if training?.stage == .complete { return }
             updateEnemyOrdnance()
             if let tick=barrage?.step(random15:{Int(self.random.next())}) {
                 if tick.playApproachSound {playSound("Bombfall")}
@@ -1325,7 +1413,7 @@ final class Game {
             if let transition=outcome.transition {
                 switch transition {
                 case .nextLevel(let next,let bonus):
-                    completeMission(nextLevel: next, bonus: bonus)
+                    confirmVictory(assets.isDepthline && next > assets.levels.count ? .sectorComplete : .mission(next), bonus: bonus)
                 case .defeat:
                     finished=true
                     if !resultRecorded {resultRecorded=true;onRunEnded?(level+1,combat.score,runID)}
@@ -1341,26 +1429,29 @@ final class Game {
         fragments.tick()
         updateOriginalEngineSounds()
     }
-    func updateOriginal2000AI() {
+    func updateOriginal2000AI(deathsOnly: Bool = false) {
         guard let ai=original2000AI else {return}
         let events=ai.tick(terrainHeight:{[assets] x,z in Double(assets.pointHeight(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100},viewPitchDegrees:Double(camera.eulerAngles.x*180 / .pi),random:{self.random.next()},soundEnabled:settings.soundEnabled,
             hoverPhasesDegrees:originalClock.hoverPhasesDegrees,smokeTick:globalAITick%4==0,
             terrainBilinearHeight:{[assets] x,z in Double(assets.height(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100},
-            betweenGroundAndHelicopters:{self.updateOriginal2000Aircraft()},
+            betweenGroundAndHelicopters:{self.updateOriginal2000Aircraft(deathsOnly:deathsOnly)},
             betweenHelicoptersAndInfantry:{self.consumeSupplyEvents(self.supply2000?.updateAI(random:{self.random.next()},terrainHeight:{[assets=self.assets] x,z in
                 Float(assets.pointHeight(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100
             },smokeTick:self.globalAITick%2==0) ?? [])},
-            onCrashVisual:{self.consumeOriginal2000CrashVisual($0,$1,$2,$3)})
+            deathsOnly:deathsOnly,onCrashVisual:{self.consumeOriginal2000CrashVisual($0,$1,$2,$3)},
+            infantryField:deathsOnly ? nil : infantryPositioningField)
         for event in events {
             switch event {
-            case .defenseChanged(let amount):combat.health=max(0,combat.health+amount)
-            case .forceAndScore(let index,let force,let score):campaign?.resolveForce(sourceIndex:index,amount:Double(-force));combat.score+=score
+            case .forceAndScore(let index,let force,let score):
+                guard !deathsOnly else { continue }
+                campaign?.resolveForce(sourceIndex:index,amount:Double(-force));combat.score+=score
             case .grenade(let shot):pendingGrenades.append(shot)
-            case .rifleFlash(_,_,let p):playSound("Rifle");effects.emit(.muzzleFlash,at:p)
-            case .playerHurtVoice(let index):playOriginalPlayerBulletHitSound(bucket:index)
+            case .rifleFlash(_,_,let p,let damage,let voice):
+                handleInfantryRifle(from: p, damage: damage, voice: voice)
             case .soldierRemoved:break
             case .tankShell(let shot):pendingOrdnance.append((.init(version:.beach2000,kind:.shell,position:shot.position,velocity:shot.velocity),nil,nil))
             case .vehicleRemoved(let index,_):
+                guard !deathsOnly else { continue }
                 campaign?.enemyRemoved(sourceIndex:index,forceRemoved:0)
             case .explosion(_,let p,_):explode(SCNVector3(p.x*0.01,p.y*0.01,p.z*0.01))
             case .smoke(_,let p):effects.emit(.blackSmoke,at:p)
@@ -1432,15 +1523,20 @@ final class Game {
             if hidden {enemy.node.removeFromParentNode()};return hidden
         }
     }
-    func updateOriginal2000Aircraft() {
+    func updateOriginal2000Aircraft(deathsOnly: Bool = false) {
         guard let ai=aircraft2000 else {return}
         for event in ai.tick(terrainHeight:{[assets] x,z in Double(assets.pointHeight(x:CGFloat(x)*0.01,z:CGFloat(z)*0.01))*100},random:{self.random.next()},
                              hoverPhasesDegrees:originalClock.hoverPhasesDegrees,smokeEveryTwoTicks:globalAITick%2==0,smokeEveryFourTicks:globalAITick%4==0,
-                             onCrashVisual:{self.consumeOriginal2000CrashVisual($0,$1,$2,$3)}) {
+                             deathsOnly:deathsOnly,onCrashVisual:{self.consumeOriginal2000CrashVisual($0,$1,$2,$3)}) {
             switch event {
-            case .forceAndScore(let index,let force,let score):campaign?.resolveForce(sourceIndex:index,amount:Double(-force));combat.score+=score
-            case .defenseChanged(let amount):combat.health=max(0,combat.health+amount)
+            case .forceAndScore(let index,let force,let score):
+                guard !deathsOnly else { continue }
+                campaign?.resolveForce(sourceIndex:index,amount:Double(-force));combat.score+=score
+            case .defenseChanged(let amount):
+                guard !deathsOnly else { continue }
+                combat.health=max(0,combat.health+amount)
             case .removed(let index,_):
+                guard !deathsOnly else { continue }
                 campaign?.enemyRemoved(sourceIndex:index,forceRemoved:0)
             case .explosion(_,let p,_):explode(SCNVector3(p.x*0.01,p.y*0.01,p.z*0.01))
             case .smoke(_,let p):effects.emit(.blackSmoke,at:p)
@@ -1477,13 +1573,15 @@ final class Game {
         }
     }
     func updateBombers() {
-        guard assets.gameID=="2002" else {return}
+        guard !bombers.isEmpty else {return}
         if pendingBomberSupport {
             pendingBomberSupport=false;bomberHeading=Original2002BomberAI.supportHeading(random15:{Int(self.random.next())})
             bombers.forEach {$0.activate()}
         }
         for (slot,ai) in bombers.enumerated() {
-            let update=ai.step(groupHeadingDegrees:bomberHeading,random15:{Int(self.random.next())})
+            let update = ai.step(groupHeadingDegrees: bomberHeading, random15: {
+                Int(self.trainingBomberRandom?[slot].next() ?? self.random.next())
+            })
             let existing=enemies.first {$0.type=="BOMBER" && $0.slot==slot}
             guard update.active else {existing?.node.removeFromParentNode();if let existing {enemies.removeAll {$0===existing}};continue}
             let enemy:Enemy
@@ -1506,7 +1604,10 @@ final class Game {
             enemies.filter {$0.type=="INFANTRY" && !$0.node.isHidden && $0.aiState>1 && $0.aiState<42}.sorted {$0.slot<$1.slot}.map {e in
                 let p=e.node.position;return SIMD3<Double>(Double(p.x*100),Double(p.y*100),Double(p.z*100))
             }
-        },includeShared:false,onUnitHit:{ [self] kind,a,b in
+        },includeShared:false,grenadeContact:assets.isDepthline ? { [self] start, end in
+            infantryObstruction(from: SIMD3<Float>(start * 0.01), to: SIMD3<Float>(end * 0.01))
+                .map { SIMD3<Double>($0.position) * 100 }
+        } : nil,onUnitHit:{ [self] kind,a,b in
             hitOriginalEnemyOrdnanceUnits(kind:kind,previous:a,position:b)
         },onImpact:{ [self] tick,kind in
             applyOriginalEnemyOrdnancePhase(tick,kind:kind)
@@ -1550,7 +1651,7 @@ final class Game {
     }
     func updateHUD() {
         assets.graphics.update(time:elapsed)
-        for enemy in enemies {RemasteredAircraft.updateScrews(on:enemy.node,type:enemy.type,tick:logicalTick)}
+        for enemy in enemies where enemy.flying {RemasteredAircraft.updateScrews(on:enemy.node,type:enemy.type,tick:logicalTick)}
         syncWeaponModel()
         updateOriginalHUD()
         refreshBattleOverlays()
@@ -1784,14 +1885,14 @@ final class AppDelegate:NSObject,NSApplicationDelegate,NSWindowDelegate {
         if !isTraining {
             current.onCheckpoint = { [weak self,weak current] level, score in
                 guard let self, let current else { return }
-                let completesSector = current.pendingNextLevel == level && current.level + 1 == current.assets.levels.count
                 do { try self.store.saveCheckpoint(gameID:id,level:level,score:score,playerName:self.store.playerName(for:id),
-                                                   usedCheats:current.usedCheats,completesSector:completesSector) }
+                                                   usedCheats:current.usedCheats) }
                 catch { self.reportStorage(error) }
             }
             current.onRunEnded = { [weak self,weak current] level, score, runID in
                 guard let self else { return }
-                do { try self.store.recordScore(gameID:id,level:level,score:score,playerName:self.store.playerName(for:id),runID:runID,usedCheats:current?.usedCheats ?? false) }
+                do { try self.store.recordScore(gameID:id,level:level,score:score,playerName:self.store.playerName(for:id),
+                                                runID:runID,usedCheats:current?.usedCheats ?? false,completesSector:current?.didCompleteCampaign ?? false) }
                 catch { self.reportStorage(error) }
             }
             current.restart(level:(checkpoint?.level ?? 1)-1,score:checkpoint?.score ?? 0,usedCheats:checkpoint?.usedCheats ?? false)

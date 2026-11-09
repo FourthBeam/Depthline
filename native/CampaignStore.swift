@@ -60,7 +60,7 @@ final class CampaignStore {
     }
 
     struct Checkpoint: Codable, Equatable {
-        let level: Int
+        var level: Int
         let score: Int
         let playerName: String
         let savedAt: Date
@@ -72,7 +72,7 @@ final class CampaignStore {
         let id: UUID
         let slot: Int
         let name: String
-        let checkpoint: Checkpoint
+        var checkpoint: Checkpoint
         let savedAt: Date
     }
 
@@ -106,20 +106,23 @@ final class CampaignStore {
         var playerName = ""
         var checkpoint: Checkpoint?
         var scores: [ScoreEntry] = []
+        // A final score remains recoverable even below the top 30.
+        var lastCompletion: ScoreEntry?
         var savedGames: [SavedGame] = []
 
         init() {}
-        private enum CodingKeys: String, CodingKey { case playerName, checkpoint, scores, savedGames }
+        private enum CodingKeys: String, CodingKey { case playerName, checkpoint, scores, savedGames, lastCompletion }
         init(from decoder: Decoder) throws {
             let values = try decoder.container(keyedBy: CodingKeys.self)
             playerName = try values.decode(String.self, forKey: .playerName)
             checkpoint = try values.decodeIfPresent(Checkpoint.self, forKey: .checkpoint)
             scores = try values.decode([ScoreEntry].self, forKey: .scores)
+            lastCompletion = try values.decodeIfPresent(ScoreEntry.self, forKey: .lastCompletion)
             savedGames = try values.decodeIfPresent([SavedGame].self, forKey: .savedGames) ?? []
         }
     }
     private struct Document: Codable {
-        static let currentVersion = 4
+        static let currentVersion = 5
         var version = currentVersion
         var settings = Settings()
         var games: [String: GameRecord] = ["2000": GameRecord(), "2002": GameRecord()]
@@ -145,7 +148,8 @@ final class CampaignStore {
     private var noticeText: (() -> String)?
     var storageNotice: String? { noticeText?() }
     var settings: Settings { document.settings }
-    static let supportedGames = ["2000", "2002"]
+    private static let finalMissions = ["2000": 60, "2002": 99]
+    static let supportedGames = finalMissions.keys.sorted()
     /// 2000's original GDI format string is "分数   %d0"; storage retains its internal units.
     static func displayScore(gameID: String, score: Int) -> String {
         gameID == "2000" ? "\(score)0" : String(score)
@@ -161,7 +165,13 @@ final class CampaignStore {
         Self.cleanName(document.games[gameID]?.playerName ?? "")
     }
     func checkpoint(for gameID: String) -> Checkpoint? { document.games[gameID]?.checkpoint }
-    func highScores(for gameID: String) -> [ScoreEntry] { document.games[gameID]?.scores ?? [] }
+    func highScores(for gameID: String) -> [ScoreEntry] {
+        guard let record = document.games[gameID] else { return [] }
+        if let result = record.lastCompletion, !record.scores.contains(where: { $0.id == result.id }) {
+            return Array((record.scores + [result]).sorted { Self.precedes($0, $1, gameID: gameID) }.prefix(30))
+        }
+        return record.scores
+    }
 
     func isSectorCompleted(_ id: String) -> Bool { document.completedSectors.contains(id) }
 
@@ -226,14 +236,12 @@ final class CampaignStore {
         try persist(next)
     }
 
-    func saveCheckpoint(gameID: String, level: Int, score: Int, playerName: String, usedCheats: Bool = false,
-                        completesSector: Bool = false) throws {
-        try validateProgress(gameID: gameID, level: level, score: score)
+    func saveCheckpoint(gameID: String, level: Int, score: Int, playerName: String, usedCheats: Bool = false) throws {
+        try validateMission(gameID: gameID, level: level)
         var next = document
         let name = Self.cleanName(playerName)
         next.games[gameID]!.playerName = name
         next.games[gameID]!.checkpoint = Checkpoint(level: level, score: score, playerName: name, savedAt: Date(), usedCheats: usedCheats)
-        if completesSector { next.completedSectors.insert(gameID) }
         try persist(next)
     }
 
@@ -245,15 +253,32 @@ final class CampaignStore {
     }
 
     /// Call once when a run ends. Supplying the same runID makes repeated completion callbacks idempotent.
-    func recordScore(gameID: String, level: Int, score: Int, playerName: String, runID: UUID = UUID(), usedCheats: Bool = false) throws {
-        try validateProgress(gameID: gameID, level: level, score: score)
+    func recordScore(gameID: String, level: Int, score: Int, playerName: String, runID: UUID = UUID(),
+                     usedCheats: Bool = false, completesSector: Bool = false) throws {
+        try validateMission(gameID: gameID, level: level)
+        if completesSector {
+            guard level == Self.finalMissions[gameID] else { throw StoreError.invalidProgress }
+            if let record = document.games[gameID],
+               record.lastCompletion?.id == runID || record.scores.contains(where: { $0.id == runID }) {
+                return
+            }
+        }
         var next = document
         let name = Self.cleanName(playerName)
+        next.games[gameID]!.scores = highScores(for: gameID)
+        let previous = next.games[gameID]!.scores.first { $0.id == runID }
+        let entry = ScoreEntry(id: runID, playerName: name, score: score, level: level,
+                               recordedAt: previous?.recordedAt ?? Date(), usedCheats: usedCheats)
         next.games[gameID]!.playerName = name
         next.games[gameID]!.scores.removeAll { $0.id == runID }
-        next.games[gameID]!.scores.append(ScoreEntry(id: runID, playerName: name, score: score, level: level, recordedAt: Date(), usedCheats: usedCheats))
+        next.games[gameID]!.scores.append(entry)
         next.games[gameID]!.scores.sort { Self.precedes($0, $1, gameID: gameID) }
         next.games[gameID]!.scores = Array(next.games[gameID]!.scores.prefix(30))
+        if completesSector {
+            next.games[gameID]!.lastCompletion = entry
+            next.games[gameID]!.checkpoint = nil
+            next.completedSectors.insert(gameID)
+        }
         try persist(next)
     }
 
@@ -281,11 +306,32 @@ final class CampaignStore {
     private func validateGame(_ id: String) throws {
         guard Self.supportedGames.contains(id) else { throw StoreError.invalidGame }
     }
-    private func validateProgress(gameID: String, level: Int, score: Int) throws {
-        try validateGame(gameID)
-        // Both originals continue with recycled level files; 2000 can penalize shooting a C130.
-        // Preserve the displayed campaign number and signed score instead of inventing caps.
-        guard level >= 1 else { throw StoreError.invalidProgress }
+    private func validateMission(gameID: String, level: Int) throws {
+        guard let last = Self.finalMissions[gameID] else { throw StoreError.invalidGame }
+        guard (1...last).contains(level) else { throw StoreError.invalidProgress }
+    }
+
+    /// Versions 1–4 let a run continue beyond its final mission. Reaching that
+    /// next start proves victory. Retained manual slots can still replay the finale.
+    private func migrateLoopedProgress(_ record: inout GameRecord, gameID: String, last: Int) -> Bool {
+        var completed = record.scores.contains { $0.level > last }
+        for i in record.savedGames.indices where record.savedGames[i].checkpoint.level > last {
+            completed = true
+            record.savedGames[i].checkpoint.level = last
+        }
+        if let checkpoint = record.checkpoint, checkpoint.level > last {
+            // The old checkpoint has no run ID. Each sector has at most one such
+            // automatic result, so use a stable migration ID across read-only loads.
+            let recoveredID = UUID(uuidString: "578C69B7-AD47-4B59-A203-00000000" + gameID)!
+            record.lastCompletion = record.scores.first {
+                $0.level == last && $0.score == checkpoint.score && $0.playerName == checkpoint.playerName
+                    && ($0.usedCheats ?? false) == (checkpoint.usedCheats ?? false)
+            } ?? ScoreEntry(id: recoveredID, playerName: checkpoint.playerName, score: checkpoint.score, level: last,
+                            recordedAt: checkpoint.savedAt, usedCheats: checkpoint.usedCheats)
+            record.checkpoint = nil
+            completed = true
+        }
+        return completed
     }
 
     private func load() {
@@ -308,12 +354,7 @@ final class CampaignStore {
             for gameID in Self.supportedGames {
                 var record = decoded.games[gameID] ?? GameRecord()
                 if !record.playerName.isEmpty { record.playerName = Self.cleanName(record.playerName) }
-                if let checkpoint = record.checkpoint {
-                    try validateProgress(gameID: gameID, level: checkpoint.level, score: checkpoint.score)
-                }
-                for entry in record.scores {
-                    try validateProgress(gameID: gameID, level: entry.level, score: entry.score)
-                }
+                guard record.scores.allSatisfy({ $0.level >= 1 }) else { throw StoreError.invalidProgress }
                 if version == 1, record.savedGames.isEmpty, let checkpoint = record.checkpoint {
                     // Preserve the only previous progress before a later new game can replace Continue.
                     // Loading is read-only; the migrated document is written by the next explicit mutation.
@@ -324,19 +365,16 @@ final class CampaignStore {
                       Set(record.savedGames.map(\.slot)).count == record.savedGames.count,
                       Set(record.savedGames.map(\.id)).count == record.savedGames.count
                 else { throw StoreError.invalidSavedGame }
+                let finalMission = Self.finalMissions[gameID]!
+                if version < 5, migrateLoopedProgress(&record, gameID: gameID, last: finalMission) {
+                    decoded.completedSectors.insert(gameID)
+                }
+                if let checkpoint = record.checkpoint {
+                    try validateMission(gameID: gameID, level: checkpoint.level)
+                }
                 for saved in record.savedGames {
                     guard (1...Self.saveSlotCount(gameID: gameID)).contains(saved.slot) else { throw StoreError.invalidSavedGame }
-                    try validateProgress(gameID: gameID, level: saved.checkpoint.level, score: saved.checkpoint.score)
-                }
-                if version < 3 {
-                    // Old level numbers describe the mission reached, including on defeat.
-                    // Only reaching a subsequent mission proves the last one was won.
-                    let lastMission = gameID == "2000" ? 60 : 100
-                    if (record.checkpoint?.level ?? 0) > lastMission
-                        || record.scores.contains(where: { $0.level > lastMission })
-                        || record.savedGames.contains(where: { $0.checkpoint.level > lastMission }) {
-                        decoded.completedSectors.insert(gameID)
-                    }
+                    try validateMission(gameID: gameID, level: saved.checkpoint.level)
                 }
                 record.scores.sort { Self.precedes($0, $1, gameID: gameID) }
                 record.scores = Array(record.scores.prefix(30))
@@ -383,7 +421,7 @@ func campaignStoreSelfTest() throws {
     try require(CampaignStore.displayScore(gameID: "2000", score: -10) == "-100"
                 && CampaignStore.displayScore(gameID: "2002", score: 10) == "10", "Original2000 displayed score units")
     try require(store.checkpoint(for: "2000") == nil && store.highScores(for: "2002").isEmpty, "Fresh data must be empty")
-    try store.saveCheckpoint(gameID: "2000", level: 106, score: -10, playerName: "海防")
+    try store.saveCheckpoint(gameID: "2000", level: 60, score: -10, playerName: "海防")
     try store.saveCheckpoint(gameID: "2002", level: 13, score: 700, playerName: "前线", usedCheats: true)
     let run = UUID()
     try store.recordScore(gameID: "2000", level: 8, score: 400, playerName: "海防", runID: run)
@@ -392,7 +430,7 @@ func campaignStoreSelfTest() throws {
     let settings = CampaignStore.Settings(soundEnabled: false, sensitivityLevel: 5, invertY: true, mouseAccelerationEnabled: true, musicEnabled: false, graphicsQuality: .remastered)
     try store.updateSettings(settings)
     let restored = CampaignStore(directory: root)
-    try require(restored.checkpoint(for: "2000")?.level == 106 && restored.checkpoint(for: "2002")?.level == 13, "Game checkpoints must remain isolated and retain campaign loops")
+    try require(restored.checkpoint(for: "2000")?.level == 60 && restored.checkpoint(for: "2002")?.level == 13, "Game checkpoints must remain isolated, including the final mission")
     try require(restored.checkpoint(for: "2000")?.playerName == "海防" && restored.checkpoint(for: "2000")?.score == -10 && restored.checkpoint(for: "2002")?.score == 700, "Checkpoint values and score penalties must round-trip")
     try require(restored.settings == settings && restored.settings.sensitivityMultiplier == 1.5, "Settings must round-trip")
     try require(restored.checkpoint(for: "2002")?.usedCheats == true && restored.highScores(for: "2000").first?.usedCheats == true, "Local assisted-run markers must persist")
@@ -460,45 +498,66 @@ private func campaignCompletionSelfTest(directory: URL) throws {
     func require(_ condition: Bool, _ message: String) throws {
         if !condition { throw NSError(domain: "CampaignCompletionTest", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
     }
-    func reopenAsLegacy(_ store: CampaignStore) throws -> CampaignStore {
-        var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: store.fileURL)) as! [String: Any]
-        legacy["version"] = 2
-        legacy.removeValue(forKey: "completedSectors")
-        let bytes = try JSONSerialization.data(withJSONObject: legacy)
-        try bytes.write(to: store.fileURL)
-        let migrated = CampaignStore(directory: directory)
-        try require(try Data(contentsOf: store.fileURL) == bytes, "Migration is read-only on launch")
-        return migrated
-    }
-
     let training = DepthlineIdentity.trainingID
     let store = CampaignStore(directory: directory)
-    try store.saveCheckpoint(gameID: "2000", level: 61, score: 0, playerName: "玩家")
-    try store.saveCurrentCheckpoint(gameID: "2000", name: "第二轮")
-    try store.clearCheckpoint(for: "2000")
-    try store.saveCheckpoint(gameID: "2002", level: 100, score: 0, playerName: "玩家")
-    try store.recordScore(gameID: "2002", level: 100, score: 9000, playerName: "玩家")
-    let fromSlot = try reopenAsLegacy(store)
-    try require(fromSlot.isSectorCompleted("2000") && !fromSlot.isSectorCompleted("2002") && !fromSlot.isSectorCompleted(training),
-                "A retained looped slot proves completion; reaching the final day or playing a campaign does not")
+    try store.saveCheckpoint(gameID: "2000", level: 60, score: -15, playerName: "海防", usedCheats: true)
+    let slot = try store.saveCurrentCheckpoint(gameID: "2000", name: "海岸备份")
+    try store.saveCheckpoint(gameID: "2002", level: 99, score: 100, playerName: "前线")
+    try store.recordScore(gameID: "2002", level: 99, score: 75, playerName: "旧记录")
+    try require(!store.isSectorCompleted("2000") && !store.isSectorCompleted("2002"), "Reaching the finale does not prove completion")
+    let ordinaryHills = store.checkpoint(for: "2002")
+    for (game, level) in [("2000", 61), ("2002", 100)] {
+        do {
+            try store.saveCheckpoint(gameID: game, level: level, score: 0, playerName: "Test")
+            throw NSError(domain: "CampaignCompletionTest", code: 2)
+        } catch CampaignStore.StoreError.invalidProgress { }
+    }
 
-    try fromSlot.saveCheckpoint(gameID: "2000", level: 1, score: 0, playerName: "玩家")
-    let slot = fromSlot.savedGames(for: "2000")[0]
-    try fromSlot.saveCurrentCheckpoint(gameID: "2000", name: "重玩", replacingID: slot.id)
-    try fromSlot.saveCheckpoint(gameID: "2000", level: 61, score: 0, playerName: "玩家")
-    try fromSlot.recordScore(gameID: "2002", level: 101, score: 0, playerName: "玩家", usedCheats: true)
-    let fromProgress = try reopenAsLegacy(fromSlot)
-    try require(fromProgress.isSectorCompleted("2000") && fromProgress.isSectorCompleted("2002"),
-                "Automatic checkpoints and scores from the second loop each recover completion")
-    try fromProgress.markSectorCompleted(training)
-    let marked = try Data(contentsOf: fromProgress.fileURL)
-    try fromProgress.markSectorCompleted(training)
-    try require(try Data(contentsOf: fromProgress.fileURL) == marked, "Completing a sector twice is idempotent")
-    try fromProgress.clearCheckpoint(for: "2000")
-    try fromProgress.loadSavedGame(gameID: "2000", id: slot.id)
+    // Produce a real v4 layout with a looped Continue, manual slot and historical score.
+    var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: store.fileURL)) as! [String: Any]
+    legacy["version"] = 4
+    var games = legacy["games"] as! [String: [String: Any]]
+    var checkpoint = games["2000"]!["checkpoint"] as! [String: Any]
+    checkpoint["level"] = 107
+    games["2000"]!["checkpoint"] = checkpoint
+    var slots = games["2000"]!["savedGames"] as! [[String: Any]]
+    slots[0]["checkpoint"] = checkpoint
+    games["2000"]!["savedGames"] = slots
+    var scores = games["2002"]!["scores"] as! [[String: Any]]
+    scores[0]["level"] = 103
+    games["2002"]!["scores"] = scores
+    legacy["games"] = games
+    let bytes = try JSONSerialization.data(withJSONObject: legacy)
+    try bytes.write(to: store.fileURL)
+    let migrated = CampaignStore(directory: directory)
+    try require(try Data(contentsOf: store.fileURL) == bytes, "Migration must leave old disk bytes intact until a mutation")
+    try require(migrated.checkpoint(for: "2000") == nil && migrated.isSectorCompleted("2000"),
+                "Looped Continue becomes a finished campaign")
+    let recovered = migrated.highScores(for: "2000")
+    try require(recovered.count == 1 && recovered[0].level == 60 && recovered[0].score == -15
+                && recovered[0].usedCheats == true && recovered[0].recordedAt == slot.checkpoint.savedAt
+                && recovered == CampaignStore(directory: directory).highScores(for: "2000"),
+                "Recover the signed result without duplicating it on repeated reads")
+    try require(migrated.savedGames(for: "2000") == [slot], "Preserve slot ID, order, name, score, cheat flag and both dates")
+    try require(migrated.checkpoint(for: "2002") == ordinaryHills && migrated.isSectorCompleted("2002")
+                && migrated.highScores(for: "2002").first?.level == 103, "Keep ordinary Continue and old historical scores")
+    try migrated.loadSavedGame(gameID: "2000", id: slot.id)
+    let run = UUID()
+    try migrated.recordScore(gameID: "2000", level: 60, score: 350, playerName: "海防", runID: run, usedCheats: true, completesSector: true)
+    let ended = CampaignStore(directory: directory)
+    try require(ended.checkpoint(for: "2000") == nil && ended.isSectorCompleted("2000")
+                && ended.highScores(for: "2000").map(\.score) == [350, -15],
+                "Final result, completion flag and cleared Continue persist together")
+    try ended.saveCheckpoint(gameID: "2000", level: 1, score: 0, playerName: "海防")
+    try ended.recordScore(gameID: "2000", level: 60, score: 350, playerName: "海防", runID: run, usedCheats: true, completesSector: true)
+    try require(ended.checkpoint(for: "2000")?.level == 1 && ended.highScores(for: "2000").count == 2,
+                "A repeated victory callback cannot clear a newer run")
+    try ended.markSectorCompleted(training)
+    let marked = try Data(contentsOf: ended.fileURL)
+    try ended.markSectorCompleted(training)
+    try require(try Data(contentsOf: ended.fileURL) == marked, "Completing training twice is idempotent")
     let reopened = CampaignStore(directory: directory)
-    try require((CampaignStore.supportedGames + [training]).allSatisfy(reopened.isSectorCompleted),
-                "Flags survive a restart, older save restore and loss of the original completion evidence")
+    try require((CampaignStore.supportedGames + [training]).allSatisfy(reopened.isSectorCompleted), "Completion flags persist on restart")
     var previousCourse = try JSONSerialization.jsonObject(with: Data(contentsOf: reopened.fileURL)) as! [String: Any]
     previousCourse["version"] = 3
     let previousBytes = try JSONSerialization.data(withJSONObject: previousCourse)
@@ -587,7 +646,7 @@ private func campaignSaveSlotsSelfTest(directory: URL) throws {
     try require(try Data(contentsOf: store.fileURL) == legacyBytes, "Migration must not write on read")
     try migrated.savePlayerName("新名字", for: "2000")
     let upgraded = try JSONSerialization.jsonObject(with: Data(contentsOf: store.fileURL)) as! [String: Any]
-    try require(upgraded["version"] as? Int == 4 && CampaignStore(directory: directory).savedGames(for: "2000").count == 1,
+    try require(upgraded["version"] as? Int == 5 && CampaignStore(directory: directory).savedGames(for: "2000").count == 1,
                 "Next explicit write commits the current schema; repeated reload must not duplicate migrated slots")
     print("PASS original named saves:12/20 slots, explicit overwrite, game isolation, level-start integrity, legacy migration and no silent eviction")
 }

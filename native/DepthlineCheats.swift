@@ -31,7 +31,7 @@ extension Game {
 
     @discardableResult
     func applyDepthlineCheat(_ cheat: DepthlineCheat) -> String {
-        guard !finished, !isShowingVictoryChoice, combat.health > 0 else {
+        guard !finished, !isShowingVictoryChoice, !isPlayingVictoryEffects, combat.health > 0 else {
             return DLoc.text("本关已结束", "This mission has ended.")
         }
         markCurrentRunAssisted()

@@ -5,7 +5,7 @@ import AppKit
 /// icons and the 2002 sight are the shipped pixels. Original 2000 uses its weapon's physical sight.
 final class OriginalHUD: NSView {
     let gameID: String
-    var remastered = true
+    var remastered = true { didSet { if remastered != oldValue { needsDisplay = true } } }
     var health: CGFloat = 1
     var level = 1
     var score = 0                         // Original internal score units, before 2000's trailing0.
@@ -19,20 +19,35 @@ final class OriginalHUD: NSView {
     var supportCount = 0
     var flareAmmo = 0
     var isNight = false
-    var crosshairVisible = true
+    var crosshairVisible = true { didSet { if crosshairVisible != oldValue { needsDisplay = true } } }
     var weaponLabel = DLoc.text("机枪", "Machine gun")
     var weaponSight = "machineGun"
     var sightVerticalFraction = DepthlineCamera.sightFractionFromTop
     var cameraFieldOfView = 53.13010235415598 // Horizontal; source focal=viewport width.
-    var paused = false
+    var paused = false { didSet { if paused != oldValue { needsDisplay = true } } }
     var finished = false
     var victorious = false
-    var message = ""
+    var message = "" { didSet { if message != oldValue { needsDisplay = true } } }
     weak var trainingGame: Game?
     var mouseCaptured = false {
         didSet { if mouseCaptured != oldValue { updateCaptureDescription() } }
     }
-    var damageFlash: CGFloat = 0
+    var damageFlash: CGFloat = 0 { didSet { if damageFlash != oldValue { needsDisplay = true } } }
+    // Each unchanged display value can keep its existing Retina backing pixels.
+    func display<Value: Equatable>(_ key: ReferenceWritableKeyPath<OriginalHUD, Value>, _ value: Value) {
+        guard self[keyPath: key] != value else { return }
+        self[keyPath: key] = value
+        needsDisplay = true
+    }
+
+    struct Lesson: Equatable {
+        let stage: DepthlineTraining.Stage
+        let title: String
+        let prompt: String
+        let bearing: String?
+    }
+    var lesson: Lesson?
+
     private(set) var assetWarnings: [String] = []
     private var images: [String: NSImage] = [:]
     override var isOpaque: Bool { false }

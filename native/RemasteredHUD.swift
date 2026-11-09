@@ -98,7 +98,9 @@ enum RemasteredHUD {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
         context.saveGState()
         context.setAlpha(0.50)
-        context.beginTransparencyLayer(auxiliaryInfo: nil)
+        // The cannon's lowest range mark is 45 points below the sight.
+        context.beginTransparencyLayer(in: CGRect(x: p.x - 28, y: p.y - 28, width: 56, height: 77),
+                                       auxiliaryInfo: nil)
         defer { context.endTransparencyLayer(); context.restoreGState() }
         let line = NSBezierPath()
         func segment(_ a: NSPoint, _ b: NSPoint) { line.move(to: NSPoint(x: p.x + a.x, y: p.y + a.y)); line.line(to: NSPoint(x: p.x + b.x, y: p.y + b.y)) }

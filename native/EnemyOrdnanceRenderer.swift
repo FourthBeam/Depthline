@@ -58,6 +58,7 @@ final class EnemyOrdnanceRenderer {
     }
     func step(ground:(Double,Double)->Double,waterAt:((Double,Double)->Bool)?=nil,infantry:()->[SIMD3<Double>],
               includeShared:Bool=true,
+              grenadeContact:((SIMD3<Double>,SIMD3<Double>)->SIMD3<Double>?)?=nil,
               onUnitHit:((OriginalEnemyOrdnanceKind,SIMD3<Double>,SIMD3<Double>)->Bool)?=nil,
               onImpact:@escaping (OriginalEnemyOrdnanceTick,OriginalEnemyOrdnanceKind)->Void) {
         var flameFrames:[OriginalRocketFlames.Frame]=[]
@@ -69,7 +70,7 @@ final class EnemyOrdnanceRenderer {
         for round in rounds.sorted(by:{order($0)<order($1)}) {
             if !includeShared,round.poolToken != nil {continue}
             let before=round.state
-            let tick=round.state.step(ground:ground,waterAt:waterAt,eligibleInfantryPositions:infantry(),
+            let tick=round.state.step(ground:ground,waterAt:waterAt,eligibleInfantryPositions:infantry(),grenadeContact:grenadeContact,
                 onUnits:{previous,end in onUnitHit?(before.kind,previous,end) ?? false},
                 onPhase:{onImpact($0,before.kind)})
             let p=tick.position;round.node.position=SCNVector3(p.x*0.01,p.y*0.01,p.z*0.01)

@@ -55,12 +55,13 @@ struct CampaignRuntimeValidation {
         game.random = Beach2000Supply.Random(seed: seed)
         game.originalClock = OriginalTickClock()
         game.restart(level: level - 1)
-        let sourceLevel = game.assets.isDepthline ? (max(1,level)-1)%game.assets.levels.count+1 : OriginalCampaign.sourceLevel(gameID: id, level: level)
+        let sourceLevel = OriginalCampaign.sourceLevel(gameID: id, level: level,
+                                                       finite: game.assets.isDepthline)
         func check(_ condition: @autoclosure () -> Bool, _ detail: String) throws {
             try require(condition(), "\(id) level \(level), tick \(game.logicalTick): \(detail)")
         }
-        if id == "2002" && level == 109 && !game.assets.isDepthline {
-            try check(sourceLevel == 100 && game.levelDefinition == nil, "original Level_100 remains absent")
+        if game.assets.isDepthline ? level > game.assets.levels.count : (id == "2002" && level == 109) {
+            try check(sourceLevel == (game.assets.isDepthline ? level : 100) && game.levelDefinition == nil, "no mission beyond the last file")
             try check(game.finished && !game.supplyMessage.isEmpty, "missing-resource path stops with a visible explanation")
             try check(game.campaign == nil && game.supply2000 == nil && game.supply2002 == nil && game.bombers.isEmpty,
                       "missing-resource path must not retain the previous mission's AI or supply state")
@@ -189,7 +190,8 @@ extension AppDelegate {
             for level in levels {
                 var missionTicks = ticks
                 if arguments.contains("--campaign-complete-delays") {
-                    let sourceLevel = OriginalCampaign.sourceLevel(gameID: id, level: level)
+                    let sourceLevel = OriginalCampaign.sourceLevel(gameID: id, level: level,
+                                                                   finite: current.assets.isDepthline)
                     let definition = current.assets.levels.first { $0["number"] as? Int == sourceLevel }
                     let objects = definition?["objects"] as? [[String: Any]] ?? []
                     let lastDelay = objects.compactMap { $0["delay"] as? Int }.max() ?? 0

@@ -147,12 +147,16 @@ final class OriginalProjectiles {
 
     // No collision callback runs here. New rounds first move on the next step.
     @discardableResult
-    func spawn(_ action: OriginalFireAction, from position: SCNVector3, direction: SCNVector3) -> Bool {
+    func spawn(_ action: OriginalFireAction, from position: SCNVector3, direction: SCNVector3,
+               deferTracer: Bool = false) -> Bool {
         guard let profile = action.ballistic, let unit = directionSource(direction),
               action.weapon != .flare else { return false }
         let kind = OriginalProjectileKind.ballistic(action.weapon)
         let node = sprite(sourceSize: kind.isCannon ? 60 : 45,
                           name: kind.isCannon ? "original-cannon-projectile" : "original-tracer-projectile")
+        // For a close-cover correction the physical barrel supplies the flash;
+        // the tracer becomes visible once the simulated round is in flight.
+        node.isHidden = deferTracer
         node.position = position; parent.addChildNode(node)
         let token = sharedPools.claim(profile.sharedBulletPool ? .bullet : .shell,
                                       writePointerWrap: profile.writePointerWrap) { [weak self] old in
@@ -176,6 +180,7 @@ final class OriginalProjectiles {
         guard sharedPools.isCurrent(token),
               let shot=(token.bank == .bullet ? bullets:shells)[token.slot],shot.poolToken==token else {return nil}
         shot.previous=shot.state.position
+        shot.node.isHidden = false
         let segment=shot.state.step();shot.node.position=scene(segment.end)
         RemasteredBallisticVisual.orient(shot.node,direction:SIMD3(shot.state.velocity.x,shot.state.velocity.y,shot.state.velocity.z))
         func p(_ value:OriginalWeaponVector)->SIMD3<Double> {.init(Double(value.x),Double(value.y),Double(value.z))}
@@ -219,6 +224,7 @@ final class OriginalProjectiles {
             for index in pool.keys.sorted() {
                 guard let shot = pool[index] else { continue }
                 shot.previous = shot.state.position
+                shot.node.isHidden = false
                 let segment = shot.state.step()
                 shot.node.position = scene(segment.end)
                 RemasteredBallisticVisual.orient(shot.node,direction:SIMD3(shot.state.velocity.x,shot.state.velocity.y,shot.state.velocity.z))

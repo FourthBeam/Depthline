@@ -230,6 +230,10 @@ final class OriginalEffectsRenderer {
         }
     }
     var activeCount: Int { entries.values.reduce(0) { $0 + $1.count } }
+    func isActive(_ token: Token) -> Bool { entries[token.kind]?[token.slot]?.token == token }
+    var hasOneShotEffects: Bool {
+        entries.values.contains { $0.values.first?.state.profile.loops == false }
+    }
 
     private func texture(_ profile: OriginalEffectProfile, frame: Int) -> NSImage? {
         let path = profile.relativeTexturePath(frame: frame)
@@ -262,24 +266,7 @@ final class OriginalEffectsRenderer {
         let state = OriginalEffectState(profile: profile, position: position, scale: scale, velocity: velocity, opacity: opacity, initialFrame: firstFrame)
         let plane = SCNPlane(width: CGFloat(profile.templateSize.x * sourceToSceneScale),
                              height: CGFloat(profile.templateSize.y * sourceToSceneScale))
-        let material = SCNMaterial(); material.lightingModel = .constant
-        material.isDoubleSided = true; material.readsFromDepthBuffer = true; material.writesToDepthBuffer = false
-        material.blendMode = .alpha
-        material.diffuse.minificationFilter = .linear; material.diffuse.magnificationFilter = .linear
-        material.diffuse.wrapS = .clamp; material.diffuse.wrapT = .clamp
-        if profile.isSmoke {
-            // Explicit renderer adapter, not recovered legacy blend state:
-            // source luminance supplies alpha; black/white comes from the
-            // original Darken/Lighten sprite class. Never draw the black square.
-            let tint = profile.darkSmoke ? "0.0" : "1.0"
-            material.shaderModifiers = [.surface: """
-            #pragma transparent
-            #pragma body
-            float mask = max(_surface.diffuse.r, max(_surface.diffuse.g, _surface.diffuse.b));
-            _surface.diffuse.a *= mask;
-            _surface.diffuse.rgb = float3(\(tint));
-            """]
-        }
+        let (material, atlas) = remastered.material(for: profile)
         plane.materials = [material]
         let planeNode = SCNNode(geometry: plane)
         if profile.bottomAnchored { planeNode.position.y = CGFloat(profile.templateSize.y * sourceToSceneScale * 0.5) }
@@ -288,10 +275,10 @@ final class OriginalEffectsRenderer {
         // sx and WORLD Y by sy. Separate nodes preserve that S*R order even
         // for nonuniform sizes and camera pitch.
         let facingNode = SCNNode(); facingNode.addChildNode(planeNode)
-        node.addChildNode(facingNode); parent.addChildNode(node)
+        node.addChildNode(facingNode)
         let entry = Entry(token: token, state: state, node: node, facingNode: facingNode, material: material)
-        entry.remastered = remastered.make(profile: profile, plane: planeNode, material: material, root: node,
-                                           facing: facingNode, seed: serial + slot * 31, sourceScale: sourceToSceneScale)
+        entry.remastered = RemasteredEffectVisual(profile: profile, plane: planeNode, material: material, root: node,
+                                                  facing: facingNode, atlas: atlas, seed: serial + slot * 31, sourceScale: sourceToSceneScale)
         // A local terrain tangent softens the bottom of smoke and spray cards on
         // sloping ground. Sample on emission, never read back a depth texture.
         if let ground, profile.isSmoke || [.groundExplosion,.dirtHit,.waterSplash].contains(kind) {
@@ -302,6 +289,7 @@ final class OriginalEffectsRenderer {
         }
         entries[kind, default: [:]][slot] = entry
         render(entry)
+        parent.addChildNode(node)
         return token
     }
 

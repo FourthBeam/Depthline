@@ -4,14 +4,66 @@ extension Game {
     func validateDepthlineInfantry(output: URL?) throws -> [String: Any] {
         defer { restart() }
         return ["sector": assets.gameID,
+                "incomingFire": try validateInfantryCoverFire(),
+                "firingPositions": try validateInfantryFiringPositions(),
                 "cannon": try validateCannonAgainstSoldiers(output: output),
                 "disembarkation": try validateArmoredTransport(output: output)]
+    }
+
+    private func validateInfantryCoverFire() throws -> [String: Any] {
+        restart()
+        // Fire across the high side wall. Both sectors use these local dimensions,
+        // with the hills emplacement facing south.
+        let side: Float = version == .beach2000 ? 1 : -1
+        let x = 5.0 * side, z = 1.3 * side
+        let low = SIMD3<Float>(x, Float(assets.height(x: CGFloat(x), z: CGFloat(z))) + 0.80, z)
+        let high = low + SIMD3(0, 3, 0)
+        func check(_ ok: Bool, _ message: String) throws {
+            try CampaignRuntimeValidation.require(ok, "Infantry cover \(assets.gameID): " + message)
+        }
+        let muzzle = SIMD3<Double>(low) * 100
+        guard case .cover(let face) = infantryFireObstruction(from: muzzle) else {
+            throw NSError(domain: "MissingSideWallInInfantryLineOfFire", code: 1)
+        }
+        let health = combat.health
+        handleInfantryRifle(from: muzzle, damage: 1, voice: 0)
+        try check(combat.health == health && coverImpacts.marks.count == 1, "Blocked rifle round must mark the wall and spare the player")
+        try check(effects.snapshots.contains { $0.token.kind == .muzzleFlash && $0.state.position == muzzle && $0.node.parent != nil },
+                  "A blocked shot must still flash at the shooting soldier's muzzle")
+        try check(infantryFireObstruction(from: SIMD3<Double>(high) * 100) == nil, "High rifle position needs a clear sightline")
+        handleInfantryRifle(from: SIMD3<Double>(high) * 100, damage: 1, voice: 0)
+        try check(combat.health == health - 1 && coverImpacts.marks.count == 1, "An exposed hit removes one defence point")
+
+        func throwGrenade(from start: SIMD3<Float>, flightTicks: Int) throws -> SIMD3<Float> {
+            let origin = SIMD3<Double>(start) * 100, ticks = Double(flightTicks)
+            var velocity = (SIMD3<Double>(0, 800, 0) - origin) / ticks
+            velocity.y += (ticks + 1) / 2 // The original applies gravity before advancing.
+            enemyOrdnance.spawn(.init(version: version, kind: .grenade, position: origin, velocity: velocity))
+            guard let round = enemyOrdnance.rounds.last else { throw NSError(domain: "MissingGrenade", code: 1) }
+            for _ in 0..<flightTicks where round.state.active { updateEnemyOrdnance() }
+            try check(!round.state.active && enemyOrdnance.rounds.isEmpty, "A grenade must resolve only once")
+            return SIMD3<Float>(round.state.position * 0.01)
+        }
+        let shield = combat.health
+        let impact = try throwGrenade(from: low, flightTicks: 1)
+        try check(simd_distance(impact, face.position) < 0.25 && combat.health == shield,
+                  "A grenade crossing the wall and ending inside the shield must explode on the wall")
+        try check(effects.snapshots.contains { $0.token.kind == .impactFlash && simd_distance($0.state.position, SIMD3<Double>(impact) * 100) < 0.01 },
+                  "The blocked grenade explosion must be visible at its physical point of contact")
+        _ = try throwGrenade(from: high, flightTicks: 12)
+        try check(combat.health == shield - 5, "A grenade that clears the wall must retain its shield damage")
+        let underground = low - SIMD3(0, 1.20, 0)
+        guard case .ground = infantryFireObstruction(from: SIMD3<Double>(underground) * 100) else {
+            throw NSError(domain: "MissingTerrainObstruction", code: 1)
+        }
+        return ["blockedRifleDamage": 0, "openRifleDamage": 1, "blockedGrenadeDamage": 0, "openGrenadeDamage": 5]
     }
 
     /// Freeze the pose and other units to distinguish a strike on the skin from a
     /// later terrain explosion. Fire from the mounted cannon through its live pool.
     private func validateCannonAgainstSoldiers(output: URL?) throws -> [String: Any] {
-        restart()
+        // Coast mission 4 is the first to supply cannon rounds.
+        restart(level: version == .beach2000 ? 3 : 0)
         for e in enemies { e.node.removeFromParentNode() }
         enemies.removeAll()
         weapons.cycleWeapon()

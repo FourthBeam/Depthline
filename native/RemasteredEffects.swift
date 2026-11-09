@@ -28,16 +28,69 @@ final class RemasteredEffects {
         }
     }
     var loadedAtlasCount: Int { atlases.count }
-    func make(profile: OriginalEffectProfile, plane: SCNNode, material: SCNMaterial,
-              root: SCNNode, facing: SCNNode, seed: Int, sourceScale: Double) -> RemasteredEffectVisual {
+    private var templates: [OriginalEffectKind: SCNMaterial] = [:]
+    func material(for profile: OriginalEffectProfile) -> (SCNMaterial, Atlas?) {
         let key: String
         switch profile.kind {
         case .explosion, .groundExplosion, .fire: key = "explosion-atlas"
         case .impactFlash, .muzzleFlash, .missileFlame: key = "muzzle-atlas"
         default: key = "smoke-atlas"
         }
-        return RemasteredEffectVisual(profile: profile, plane: plane, material: material,
-                                      root: root, facing: facing, atlas: atlases[key], seed: seed, sourceScale: sourceScale)
+        let atlas = atlases[key]
+        if let template = templates[profile.kind] {
+            return (template.copy() as! SCNMaterial, atlas)
+        }
+        let material = SCNMaterial()
+        let kind = profile.kind
+        material.lightingModel = .constant
+        material.isDoubleSided = true
+        material.readsFromDepthBuffer = true
+        material.writesToDepthBuffer = false
+        material.diffuse.minificationFilter = .linear
+        material.diffuse.magnificationFilter = .linear
+        material.diffuse.wrapS = .clamp
+        material.diffuse.wrapT = .clamp
+        material.diffuse.contents = atlas?.image ?? NSColor.white
+        material.blendMode = .alpha
+        // Mip filtering suppresses distant smoke shimmer; the transparent cell
+        // margin, half-texel inset and per-cell edge fade prevent bright seams.
+        material.diffuse.mipFilter = .linear
+        material.setValue(Float(atlas?.grid ?? 1), forKey: "fxGrid")
+        material.setValue(Float(0), forKey: "fxAge")
+        let tint: String
+        switch kind {
+        case .whiteSmoke: tint = "float3(0.85, 0.90, 0.94)"
+        case .blackSmoke: tint = "float3(0.32, 0.35, 0.39)"
+        case .smokeBurst: tint = "float3(0.52, 0.47, 0.40)"
+        case .dirtHit: tint = "float3(0.74, 0.59, 0.40)"
+        case .blood: tint = "float3(0.55, 0.045, 0.025)"
+        case .waterSplash: tint = "float3(0.82, 0.94, 1.0)"
+        default: tint = "float3(1.0)"
+        }
+        let flame = kind == .fire || kind == .missileFlame
+        let groundFade = profile.isSmoke || [.groundExplosion,.dirtHit,.waterSplash].contains(kind)
+        if groundFade { material.setValue(NSValue(scnVector3:SCNVector3(0,0,-10000)),forKey:"dlFXGround") }
+        material.shaderModifiers = [.surface: """
+        #pragma arguments
+        float fxGrid;
+        float fxAge;
+        \(groundFade ? "float3 dlFXGround;" : "")
+        #pragma transparent
+        #pragma body
+        float2 localUV = fract(_surface.diffuseTexcoord * fxGrid);
+        float2 margin = min(localUV, float2(1.0) - localUV);
+        float edge = smoothstep(0.012, 0.065, min(margin.x, margin.y));
+        float rawAlpha = _surface.diffuse.a;
+        _surface.diffuse.a = rawAlpha * smoothstep(0.025, 0.065, rawAlpha) * edge;
+        _surface.diffuse.rgb *= \(tint);
+        \(groundFade ? "float3 world=(scn_frame.inverseViewTransform*float4(_surface.position,1.0)).xyz; _surface.diffuse.a*=smoothstep(-0.08,0.65,world.y-dot(dlFXGround.xy,world.xz)-dlFXGround.z);" : "")
+        \(atlas == nil ? "float r = length(localUV - float2(0.5)) * 2.0; _surface.diffuse.a *= exp(-r*r*5.0) * (1.0-smoothstep(0.6,1.0,r));" : "")
+        \(flame ? "float heat = max(_surface.diffuse.r, max(_surface.diffuse.g, _surface.diffuse.b)); float tongue = 0.82 + 0.18*sin(localUV.x*25.0 + localUV.y*17.0 + fxAge*9.0); _surface.diffuse.a *= smoothstep(0.15,0.45,heat) * tongue; _surface.diffuse.rgb *= float3(1.4,1.13,0.75);" : "")
+        """]
+        // SceneKit shares the prepared image across these copies. Each effect
+        // still owns its UV transform, age and local ground shader uniforms.
+        templates[kind] = material
+        return (material.copy() as! SCNMaterial, atlas)
     }
 
     static func glowMaterial(color: NSColor, ring: Bool = false) -> SCNMaterial {
@@ -84,45 +137,6 @@ final class RemasteredEffectVisual {
          facing: SCNNode, atlas: RemasteredEffects.Atlas?, seed: Int, sourceScale: Double) {
         kind = profile.kind; self.material = material; self.plane = plane; self.atlas = atlas
         base = CGFloat(profile.templateSize.x * sourceScale); self.seed = seed; loop = profile.loops
-        material.shaderModifiers = nil; material.lightingModel = .constant
-        material.diffuse.contents = atlas?.image ?? NSColor.white
-        material.diffuse.contentsTransform = SCNMatrix4Identity
-        material.blendMode = .alpha
-        // Mip filtering suppresses distant smoke shimmer; the transparent cell
-        // margin, half-texel inset and per-cell edge fade prevent bright seams.
-        material.diffuse.mipFilter = .linear
-        material.setValue(Float(atlas?.grid ?? 1), forKey: "fxGrid")
-        material.setValue(Float(0), forKey: "fxAge")
-        let tint: String
-        switch kind {
-        case .whiteSmoke: tint = "float3(0.85, 0.90, 0.94)"
-        case .blackSmoke: tint = "float3(0.32, 0.35, 0.39)"
-        case .smokeBurst: tint = "float3(0.52, 0.47, 0.40)"
-        case .dirtHit: tint = "float3(0.74, 0.59, 0.40)"
-        case .blood: tint = "float3(0.55, 0.045, 0.025)"
-        case .waterSplash: tint = "float3(0.82, 0.94, 1.0)"
-        default: tint = "float3(1.0)"
-        }
-        let flame = kind == .fire || kind == .missileFlame
-        let groundFade = profile.isSmoke || [.groundExplosion,.dirtHit,.waterSplash].contains(kind)
-        if groundFade { material.setValue(NSValue(scnVector3:SCNVector3(0,0,-10000)),forKey:"dlFXGround") }
-        material.shaderModifiers = [.surface: """
-        #pragma arguments
-        float fxGrid;
-        float fxAge;
-        \(groundFade ? "float3 dlFXGround;" : "")
-        #pragma transparent
-        #pragma body
-        float2 localUV = fract(_surface.diffuseTexcoord * fxGrid);
-        float2 margin = min(localUV, float2(1.0) - localUV);
-        float edge = smoothstep(0.012, 0.065, min(margin.x, margin.y));
-        float rawAlpha = _surface.diffuse.a;
-        _surface.diffuse.a = rawAlpha * smoothstep(0.025, 0.065, rawAlpha) * edge;
-        _surface.diffuse.rgb *= \(tint);
-        \(groundFade ? "float3 world=(scn_frame.inverseViewTransform*float4(_surface.position,1.0)).xyz; _surface.diffuse.a*=smoothstep(-0.08,0.65,world.y-dot(dlFXGround.xy,world.xz)-dlFXGround.z);" : "")
-        \(atlas == nil ? "float r = length(localUV - float2(0.5)) * 2.0; _surface.diffuse.a *= exp(-r*r*5.0) * (1.0-smoothstep(0.6,1.0,r));" : "")
-        \(flame ? "float heat = max(_surface.diffuse.r, max(_surface.diffuse.g, _surface.diffuse.b)); float tongue = 0.82 + 0.18*sin(localUV.x*25.0 + localUV.y*17.0 + fxAge*9.0); _surface.diffuse.a *= smoothstep(0.15,0.45,heat) * tongue; _surface.diffuse.rgb *= float3(1.4,1.13,0.75);" : "")
-        """]
         if [.explosion, .groundExplosion, .impactFlash, .muzzleFlash, .fire, .missileFlame].contains(kind) {
             let n = RemasteredEffects.glowNode(size: base * 1.4, color: NSColor(srgbRed: 1, green: 0.42, blue: 0.08, alpha: 0.35))
             n.position = plane.position; n.position.z = -0.015

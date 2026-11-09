@@ -90,8 +90,29 @@ struct Beach2002Supply {
             self.drops=[hdrop,adrop,pdrop,mdrop].map { min(4,$0) }
         }
     }
+
+    static func declarations(from objects: [[String: Any]]) -> [Declaration] {
+        var result: [Declaration] = []
+        var ordinal = 0
+        for (index, object) in objects.enumerated() where object["type"] as? String == "C130" {
+            let slot = object["slot"] as? Int ?? ordinal
+            ordinal += 1
+            guard (0..<8).contains(slot) else { continue }
+            func amount(_ key: String, default fallback: Int = 0) -> Int {
+                (object[key] as? NSNumber)?.intValue ?? fallback
+            }
+            result.append(Declaration(sourceIndex: index, slot: slot, delay: object["delay"] as? Int,
+                                      passes: amount("passes", default: 127), far: amount("far") != 0,
+                                      troops1: amount("troops1"), troops2: amount("troops2"),
+                                      hdrop: amount("hdrop"), adrop: amount("adrop"),
+                                      pdrop: amount("pdrop"), mdrop: amount("mdrop"),
+                                      alternate: amount("alternate") != 0))
+        }
+        return result
+    }
     struct Plane {
         let declaration: Declaration
+        var isCrashing: Bool { visible && (state == .beginCrash || state == .crashing) }
         var sourceIndex: Int { declaration.sourceIndex }
         var objectID: Int { 210 + declaration.slot }
         /// Root and its four propeller groups are objectID+[0,8,16,24,32].
@@ -216,9 +237,9 @@ struct Beach2002Supply {
     /// FUN_004051c8 visits C130 before Jets, and payloads after CH53.
     @discardableResult
     mutating func updateAircraft(random: () -> UInt32, terrainHeight: (Float,Float)->Float,
-                                smokeTick: Bool, allocateTrooperID: () -> Int) -> [Event] {
+                                smokeTick: Bool, deathsOnly: Bool = false, allocateTrooperID: () -> Int) -> [Event] {
         var events: [Event]=[]
-        for i in planes.indices where planes[i].visible {
+        for i in planes.indices where planes[i].visible && (!deathsOnly || planes[i].isCrashing) {
             switch planes[i].state {
             case .inactive:
                 planes[i].visible=false
@@ -410,7 +431,11 @@ struct Beach2002Supply {
         if (454..<458).contains(id) {reward = .defense; result.defense += 15}
         if (458..<462).contains(id) {reward = .machineGun; result.machineGun += 50}
         if (462..<466).contains(id) {reward = .cannon; result.cannon += 4}
-        if (466..<469).contains(id) {reward = .missile; result.missile += 2}
+        // The original skipped its fourth missile slot. Every marked missile
+        // crate in Depthline redeems the payload it advertises.
+        if (466..<469).contains(id) || (id == 469 && cargoDescent == .depthlineCargo) {
+            reward = .missile; result.missile += 2
+        }
         return Collection(sourceIndex:chute.sourceIndex,parachuteID:parachuteID,payloadID:id,
             reward:reward,resources:result,remainingForceDelta:chute.payloadKind == .trooper ? -1 : 0,
             transitionCounter:reward == nil ? nil : 150)
@@ -436,6 +461,17 @@ extension Beach2002Supply {
         func check(_ value:@autoclosure()->Bool,_ message:String)throws {
             if !value() {throw TestFailure(description:message)}
         }
+        let authored = declarations(from: [
+            ["type":"TANK"],
+            ["type":"C130","slot":3,"delay":0,"far":true,"troops1":20],
+            ["type":"C130","Far":true,"pasess":1],
+            ["type":"C130","slot":8]
+        ])
+        try check(authored.map(\.slot) == [3, 1] && authored.map(\.sourceIndex) == [1, 2],
+                  "C130 declarations preserve source IDs, explicit slots and the old implicit ordinals")
+        try check(authored[0].far && authored[0].delay == 0 && authored[0].troops1 == 16 &&
+                  !authored[1].far && authored[1].delay == nil && authored[1].passes == 127,
+                  "C130 reads only the original case-sensitive field names and preserves an explicit zero delay")
         let flat:(Float,Float)->Float={_,_ in 0},zero:()->UInt32={0}
         var nextTroop=358
         func allocate()->Int {defer {nextTroop += 1};return nextTroop}
@@ -515,6 +551,12 @@ extension Beach2002Supply {
         for j in 0..<4 {_=drop(&s,12288);let m=s.collect(parachuteID:296+j,resources:base)!
             try check(m.payloadID==466+j,"Four independent missile-box ring slots")
             try check(m.resources.missile==(j==3 ? 19:21) && (m.reward == nil)==(j==3),"Original469 exclusion preserved")
+        }
+        s=fixture(Declaration(sourceIndex:8,slot:0,mdrop:4),motion:.depthlineCargo)
+        for j in 0..<4 {
+            _=drop(&s,12288)
+            let marked=s.collect(parachuteID:294+j,resources:base)!
+            try check(marked.payloadID==466+j && marked.reward == .missile && marked.resources.missile==21,"Every marked missile crate redeems its payload")
         }
         capped=Resources(defense:110,machineGun:540,cannon:23,missile:21);capped.applyOriginalCaps()
         try check(capped==Resources(defense:100,machineGun:500,cannon:20,missile:20),"All original post-update caps")

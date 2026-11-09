@@ -96,6 +96,11 @@ final class OriginalFragments {
         pieces.map { .init(state: $0.state, node: $0.node, sourceCommandCount: $0.commandCount, sourcePolygonCount: $0.polygonCount) }
     }
     var activeCount: Int { pieces.count }
+    // One legacy fragment slot never advances position. Only moving pieces and
+    // detached turrets can still land; a static wreck must not hold the result.
+    var hasMovingDebris: Bool {
+        !tankTurrets.isEmpty || pieces.contains { $0.state.objectID < firstObjectID + updatedSlotCount }
+    }
     var tankTurretSnapshots: [Snapshot] {
         tankTurrets.keys.sorted().compactMap { id in
             tankTurrets[id].map { .init(state:$0.state,node:$0.node,sourceCommandCount:0,sourcePolygonCount:0) }

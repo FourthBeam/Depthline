@@ -66,6 +66,7 @@ final class OriginalCampaign {
         self.remainingSeconds = gameID == "2000" ? max(0, Self.integer(definition["time"], default: 120)) : nil
         var prepared: [Source] = []
         var ordinals: [String: Int] = [:]
+        let groupDirections = definition["groupDirections"] as? [String: String] ?? [:]
         for (index, object) in (definition["objects"] as? [[String: Any]] ?? []).enumerated() {
             let rawType = (object["type"] as? String ?? "").uppercased()
             let type = ["HELICOPTER1": "COBRA", "HELICOPTER2": "CH53", "APC": "APC1"][rawType] ?? rawType
@@ -93,9 +94,10 @@ final class OriginalCampaign {
                 repeats = false
             }
             let totalForce = force * Double((active ? 1 : 0) + activations)
+            let group = type.hasPrefix("APC") ? "APC" : type
             prepared.append(Source(type: type, slot: slot, index: index,
                                    cargoFamily: object["cargoFamily"] as? String,
-                                   direction: object["direction"] as? String,
+                                   direction: groupDirections[group] ?? object["direction"] as? String,
                                    force: force, delay: delay, repeats: repeats, active: active,
                                    remainingActivations: activations, countdown: delay,
                                    remainingForce: totalForce))
@@ -106,10 +108,11 @@ final class OriginalCampaign {
     }
 
     /// The originals recycle resource files while retaining a monotonically increasing campaign level.
-    /// BH2002's exact mapping can return100 (e.g. level109), but this supplied package lacks Level_100.
-    /// The caller must report that missing resource, rather than silently select a different mission.
-    static func sourceLevel(gameID: String, level: Int) -> Int {
+    /// The BH2002 loader requests Level_100 on day 109 and every ten days after that.
+    /// Depthline ends at the last authored mission; a missing number never aliases another file.
+    static func sourceLevel(gameID: String, level: Int, finite: Bool = false) -> Int {
         let level = max(1, level)
+        if finite { return level }
         if gameID == "2000" { return level <= 60 ? level : level % 10 + 51 }
         return level <= 99 ? level : level % 10 + 91
     }
@@ -286,6 +289,16 @@ func originalCampaignSelfTest() throws {
     try require(b.tickOutcome(health: 0, ammunitionExhausted: true).transition == nil, "End transitions must be idempotent")
     try require(OriginalCampaign.sourceLevel(gameID: "2000", level: 61) == 52 && OriginalCampaign.sourceLevel(gameID: "2000", level: 70) == 51, "Preserve2000 original modulo mapping")
     try require(OriginalCampaign.sourceLevel(gameID: "2002", level: 100) == 91 && OriginalCampaign.sourceLevel(gameID: "2002", level: 109) == 100, "Preserve2002 original missing-Level100 edge instead of fabricating a mission")
+    for (id, last) in [("2000", 60), ("2002", 99)] {
+        try require(OriginalCampaign.sourceLevel(gameID: id, level: last + 1, finite: true) == last + 1,
+                    "A finished Depthline campaign must not wrap to an earlier mission")
+    }
+    let directions = OriginalCampaign(gameID: "2002", level: 1, definition: [
+        "groupDirections": ["APC": "West"],
+        "objects": [["type": "APC1", "direction": "North"], ["type": "APC3", "delay": 1]]
+    ])
+    try require(directions.takeInitialSpawns().first?.direction == "West" && directions.tick().first?.direction == "West",
+                "The last direction for an APC group applies to every subtype and delayed slot")
     let cheat = OriginalCampaign(gameID: "2002", level: 1, definition: ["objects": [["type": "TANK", "delay": 2]]])
     cheat.applyForceZeroCheat()
     try require(cheat.remainingForce == 0 && cheat.pendingSpawnCount == 1 && cheat.tick().isEmpty

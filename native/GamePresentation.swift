@@ -5,47 +5,54 @@ import SceneKit
 /// quantities stay in their source units; only SceneKit coordinates use /100.
 extension Game {
     func updateOriginalHUD() {
-        hud.health = CGFloat(combat.health) / 100
-        hud.level = level + 1
-        hud.score = combat.score
-        hud.remainingTime = campaign?.remainingSeconds
-        hud.forceFraction = (campaign?.remainingForce ?? 0) / max(0.0001, campaign?.initialForce ?? 1)
+        hud.display(\.health, CGFloat(combat.health) / 100)
+        hud.display(\.level, level + 1)
+        hud.display(\.score, combat.score)
+        hud.display(\.remainingTime, campaign?.remainingSeconds)
+        hud.display(\.forceFraction, (campaign?.remainingForce ?? 0) / max(0.0001, campaign?.initialForce ?? 1))
         let capacity = ammunitionCapacity
         switch weapons.selected {
         case .machineGun:
-            hud.weaponLabel = DLoc.text("机枪", "Machine gun"); hud.weaponSight = "machineGun"
-            hud.weaponAmmo = weapons.ammo.machineGun
-            hud.weaponCapacity = capacity.machineGun
+            hud.display(\.weaponLabel, DLoc.text("机枪", "Machine gun"))
+            hud.display(\.weaponSight, "machineGun")
+            hud.display(\.weaponAmmo, weapons.ammo.machineGun)
+            hud.display(\.weaponCapacity, capacity.machineGun)
         case .cannon:
-            hud.weaponLabel = DLoc.text("火炮", "Cannon"); hud.weaponSight = "cannon"
-            hud.weaponAmmo = weapons.ammo.cannon
-            hud.weaponCapacity = capacity.cannon
+            hud.display(\.weaponLabel, DLoc.text("火炮", "Cannon"))
+            hud.display(\.weaponSight, "cannon")
+            hud.display(\.weaponAmmo, weapons.ammo.cannon)
+            hud.display(\.weaponCapacity, capacity.cannon)
         case .handgun:
-            hud.weaponLabel = DLoc.text("手枪", "Pistol"); hud.weaponSight = "handgun"
-            hud.weaponAmmo = weapons.ammo.handgun
-            hud.weaponCapacity = capacity.handgun
+            hud.display(\.weaponLabel, DLoc.text("手枪", "Pistol"))
+            hud.display(\.weaponSight, "handgun")
+            hud.display(\.weaponAmmo, weapons.ammo.handgun)
+            hud.display(\.weaponCapacity, capacity.handgun)
         case .flare:
-            hud.weaponLabel = DLoc.text("照明枪", "Flare gun"); hud.weaponSight = "flare"
-            hud.weaponAmmo = weapons.ammo.flare
-            hud.weaponCapacity = capacity.flare
+            hud.display(\.weaponLabel, DLoc.text("照明枪", "Flare gun"))
+            hud.display(\.weaponSight, "flare")
+            hud.display(\.weaponAmmo, weapons.ammo.flare)
+            hud.display(\.weaponCapacity, capacity.flare)
         }
-        hud.missileAmmo = weapons.ammo.missile
-        hud.missileCapacity = capacity.missile
-        hud.missileReadySlots = weapons.missileSlots.map(\.ready)
-        hud.supportCount = weapons.supportAvailable ? 1 : 0
-        hud.flareAmmo = weapons.ammo.flare
-        hud.isNight = night
-        hud.cameraFieldOfView = Double(camera.camera?.fieldOfView ?? CGFloat(OriginalScenePresentation.horizontalFieldOfView))
-        hud.sightVerticalFraction = (1 + (camera.camera?.projectionTransform.m32 ?? 0)) / 2
+        hud.display(\.missileAmmo, weapons.ammo.missile)
+        hud.display(\.missileCapacity, capacity.missile)
+        hud.display(\.missileReadySlots, weapons.missileSlots.map(\.ready))
+        hud.display(\.supportCount, weapons.supportAvailable ? 1 : 0)
+        hud.display(\.flareAmmo, weapons.ammo.flare)
+        hud.display(\.isNight, night)
+        hud.display(\.cameraFieldOfView, Double(camera.camera?.fieldOfView ?? CGFloat(OriginalScenePresentation.horizontalFieldOfView)))
+        hud.display(\.sightVerticalFraction, (1 + (camera.camera?.projectionTransform.m32 ?? 0)) / 2)
         hud.paused = paused
         hud.mouseCaptured = view.mouseCapture.isCaptured
         // A missing authored level is a loading failure, not an original defeat.
-        hud.finished = finished && combat.health <= 0
-        hud.victorious = combat.health > 0 && (campaign?.remainingForce ?? 1) <= 0.0001
+        hud.display(\.finished, finished && combat.health <= 0)
+        hud.display(\.victorious, combat.health > 0 && (campaign?.remainingForce ?? 1) <= 0.0001)
         if elapsed < supplyMessageUntil { hud.message = supplyMessage }
-        else if inputLocked && !isShowingVictoryChoice && combat.health > 0 { hud.message = DLoc.text("弹药耗尽", "Out of ammunition") }
+        else if inputLocked && !isPlayingVictoryEffects && !isShowingVictoryChoice && combat.health > 0 { hud.message = DLoc.text("弹药耗尽", "Out of ammunition") }
         else { hud.message = "" }
-        hud.needsDisplay = true
+        if let training {
+            hud.display(\.lesson, .init(stage: training.stage, title: training.title,
+                                       prompt: training.prompt(in: self), bearing: training.bearing(in: self)))
+        }
     }
 
     func playOriginalSound(_ name: String) {

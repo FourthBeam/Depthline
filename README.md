@@ -22,6 +22,8 @@ Depthline is a first-person defense game for Apple Silicon Macs. Hold your groun
 | --- | --- |
 | [![Floodlit ground in front of the gun position, with hills silhouetted at night](docs/screenshots/hills-night.jpg)](docs/screenshots/hills-night.jpg) | [![Training instructions beside the gunsight, with the target helicopter above the crosshairs](docs/screenshots/training.jpg)](docs/screenshots/training.jpg) |
 
+[Supply markings](docs/screenshots/supply-markings.png): a red cross restores health, three cartridges give machine-gun rounds, a shell gives cannon rounds, and a finned missile gives missiles. The designs are painted on all four sides of the crate.
+
 ## Build from source
 
 You need an Apple Silicon Mac running macOS 13 or later, Python 3, and Xcode Command Line Tools with a Swift compiler that supports the project sources. The game uses Apple's AppKit, SceneKit, and Metal frameworks. To install the command line tools for the first time, run `xcode-select --install`.
@@ -33,11 +35,11 @@ bash native/build.sh
 open build/Depthline.app
 ```
 
-The build generates the terrain and missions and uses the images and synthesized audio included in the repository. To regenerate the audio, run `python3 tools/generate_original_audio.py` in a Python environment with NumPy installed.
+The build generates the terrain and packages the mission configurations, images and synthesized audio included in the repository. To regenerate the audio, run `python3 tools/generate_original_audio.py` in a Python environment with NumPy installed.
 
 ## How to play
 
-The game opens with Training selected. Follow the firing-range prompts to practice aiming, switching weapons, collecting supplies, and firing missiles. Then take on the 60 Coast missions or the 100 Hills missions. Each campaign creates a checkpoint at the start of a mission. After a win, you can continue directly to the next mission or return to the sector selection screen. Progress, named saves, and settings are stored locally in `~/Library/Application Support/Depthline/campaigns.json`.
+The game opens with Training selected. Follow the firing-range prompts to practice aiming, switching weapons, collecting supplies, calling in Coast artillery (A) and a Hills bomber strike (B), and firing missiles. Coast has 60 distinct missions and Hills has 99. Both campaigns end after their final mission; the result is saved and you can return to sector selection. Each campaign creates a checkpoint at the start of a mission. The last hit locks in your score, and the victory menu waits for the crash, explosion and other effects to finish. After an intermediate win, you can continue to the next mission or return to sector selection. Progress, named saves, and settings are stored locally in `~/Library/Application Support/Depthline/campaigns.json`.
 
 | Action | Control |
 | --- | --- |
@@ -64,7 +66,7 @@ Run these commands from Terminal while logged in to a macOS graphical desktop. T
 
 This project is for learning, research, and noncommercial exchange. Commercial use requires separate permission from the relevant rights holders. The credits display the FourthBeam and Codex marks. The developer supplied the FourthBeam mark, and the Codex mark comes from the OpenAI desktop app. The marks belong to their respective rights holders.
 
-The terrain, missions, collision data, and 3D models are generated procedurally. Gunfire, explosions, and menu music are synthesized from oscillators and noise. Generative tools were used to create the ground textures, skies, visual effects, menu illustrations, and app icon. Parts of the gameplay simulation and internal compatibility interfaces draw on earlier research.
+The terrain, collision data, and 3D models are generated procedurally. Coast and Hills use the enemy slots, activation delays, aircraft payloads and aggression values recovered from the supplied Beach Head 2000 and 2002 mission data. Starting ammunition and support calls follow each original mission. The Coast countdown determines a time bonus; Hills has no mission countdown. Gunfire, explosions, and menu music are synthesized from oscillators and noise. Generative tools were used to create the ground textures, skies, visual effects, menu illustrations, and app icon. Parts of the gameplay simulation and internal compatibility interfaces draw on earlier research.
 
 The [tools directory](tools/) contains the generation scripts. The [art asset manifest](remastered-assets/manifest.json), [cloud generation record](original-assets/sky-generation.json), and [audio manifest](original-assets/audio/manifest.json) document the assets. The built app lists its bundled resources and their SHA-256 hashes in `Contents/Resources/ASSET-PROVENANCE.json`.
 
@@ -94,6 +96,8 @@ The [tools directory](tools/) contains the generation scripts. The [art asset ma
 | --- | --- |
 | [![夜色中的丘陵和阵地前方的照明区](docs/screenshots/hills-night.jpg)](docs/screenshots/hills-night.jpg) | [![教学任务提示和准星上方的直升机靶机](docs/screenshots/training.jpg)](docs/screenshots/training.jpg) |
 
+[空投标志图例](docs/screenshots/supply-markings.png)：红十字是回血箱，三发子弹是机枪弹，单枚炮弹是炮弹补给，带尾翼的导弹是导弹补给。图案印在箱子四面，伞面保持原样。
+
 ## 从源码构建
 
 需要 Apple Silicon Mac、macOS 13 或更高版本、支持当前 Swift 源码的 Xcode 命令行工具，以及 Python 3。游戏使用系统的 AppKit、SceneKit 和 Metal。首次安装开发工具可运行 `xcode-select --install`。
@@ -105,11 +109,11 @@ bash native/build.sh
 open build/Depthline.app
 ```
 
-普通构建会生成地形和关卡，并使用仓库内的图片与合成音频。要重新合成音频，可在安装了 NumPy 的 Python 环境中运行 `python3 tools/generate_original_audio.py`。
+普通构建会生成地形，并打包仓库内的关卡配置、图片和合成音频。要重新合成音频，可在安装了 NumPy 的 Python 环境中运行 `python3 tools/generate_original_audio.py`。
 
 ## 开始游戏
 
-第一次进入时默认选中教学战区。跟随靶场提示练习瞄准、武器切换、领取补给和发射导弹，再进入海岸的 60 关或丘陵的 100 关。战役在关卡开始时建立检查点，通关后可立即进入下一关，也可以返回战区选择。进度、命名存档及设置保存在本机的 `~/Library/Application Support/Depthline/campaigns.json`。
+第一次进入时默认选中教学战区。跟随靶场提示练习瞄准、武器切换、领取补给、呼叫海岸炮击（A）和丘陵轰炸（B），最后练习发射导弹，再进入海岸或丘陵。海岸有 60 份独立关卡配置，丘陵有 99 份。战役在关卡开始时建立检查点。最后一击锁定成绩，等坠毁、爆炸等演出结束后再显示结算菜单。普通关卡可继续下一关或返回战区选择；海岸第 60 关和丘陵第 99 关胜利后结算成绩，返回战区选择。进度、命名存档及设置保存在本机的 `~/Library/Application Support/Depthline/campaigns.json`。
 
 | 操作 | 按键 |
 | --- | --- |
@@ -136,6 +140,6 @@ open build/Depthline.app
 
 本项目仅供学习、研究和非商业交流。商业使用需另行取得相关权利人的授权。制作人页面显示 FourthBeam 和 Codex 标识。FourthBeam 标识由开发者提供，Codex 标识来自 OpenAI 桌面应用，相关标识的权利归各自权利人。
 
-地形、关卡、碰撞数据和三维模型由程序生成。枪炮、爆炸和菜单音乐以振荡器和噪声合成。地表贴图、天空、特效、菜单插画及应用图标使用生成式工具制作。部分玩法模拟与内部兼容接口沿用了早期研究成果。
+地形、碰撞数据和三维模型由程序生成。海岸与丘陵分别采用从《抢滩登陆 2000》和《抢滩登陆 2002》还原的敌方编成、出场延迟、空运载荷和攻击性参数。玩家开局弹药、计时和可呼叫支援也取自对应原版关卡。海岸倒计时影响通关奖金，丘陵没有关卡倒计时。枪炮、爆炸和菜单音乐以振荡器和噪声合成。地表贴图、天空、特效、菜单插画及应用图标使用生成式工具制作。部分玩法模拟与内部兼容接口沿用了早期研究成果。
 
 生成脚本位于 [tools](tools/)，图像记录见[美术素材清单](remastered-assets/manifest.json)和[云层生成记录](original-assets/sky-generation.json)，音频记录见[音频清单](original-assets/audio/manifest.json)。构建后的应用在 `Contents/Resources/ASSET-PROVENANCE.json` 中列出随包资源及其 SHA-256。

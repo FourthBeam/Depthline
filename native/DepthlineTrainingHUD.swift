@@ -73,28 +73,28 @@ enum DepthlineTrainingHUD {
             return
         }
 
-        if training.stage == .complete { return }
+        guard let lesson = hud.lesson, lesson.stage != .complete else { return }
 
         plate(layout.lesson)
         text(DLoc.text("教学战区", "Training Sector"), x: 43, y: 36, width: 180, size: 12, color: gold, weight: .semibold)
         let lessonCount = DepthlineTraining.lessonCount
-        text(DLoc.text("课目  \(training.stage.rawValue+1) / \(lessonCount)", "Lesson  \(training.stage.rawValue+1) / \(lessonCount)"), x: 306, y: 35, width: 133, size: 12, color: muted, alignment: .right)
-        text(training.title, x: 42, y: 54, width: 396, size: 25, weight: .bold)
-        text(training.prompt(in: game), x: 43, y: 89, width: 394, size: 14, wrappedHeight: 40)
-        if training.stage == .missile {
+        text(DLoc.text("课目  \(lesson.stage.rawValue+1) / \(lessonCount)", "Lesson  \(lesson.stage.rawValue+1) / \(lessonCount)"), x: 306, y: 35, width: 133, size: 12, color: muted, alignment: .right)
+        text(lesson.title, x: 42, y: 54, width: 396, size: 25, weight: .bold)
+        text(lesson.prompt, x: 43, y: 89, width: 394, size: 14, wrappedHeight: 40)
+        if lesson.stage == .missile {
             var note = DLoc.text("机枪、火炮和手枪也能击毁直升机。", "Guns can also down helicopters.")
-            if let bearing = training.bearing(in: game) { note += "   " + bearing }
+            if let bearing = lesson.bearing { note += "   " + bearing }
             text(note, x: 43, y: 131, width: 395, size: 12, color: gold, wrappedHeight: 34)
-        } else if let bearing = training.bearing(in: game) {
+        } else if let bearing = lesson.bearing {
             text(bearing, x: 43, y: 131, width: 395, size: 12, color: gold)
         }
         let stepWidth = 400 / CGFloat(lessonCount)
         for index in 0..<lessonCount {
-            (index <= training.stage.rawValue ? gold : muted.withAlphaComponent(0.3)).setFill()
+            (index <= lesson.stage.rawValue ? gold : muted.withAlphaComponent(0.3)).setFill()
             NSBezierPath(roundedRect: .init(x: 43+CGFloat(index)*stepWidth, y: 169, width: stepWidth-6, height: 3), xRadius: 1.5, yRadius: 1.5).fill()
         }
         button(layout.guide, DLoc.text("按键速查   Tab", "Controls   Tab"))
-        let showMissiles = training.stage == .missile
+        let showMissiles = lesson.stage == .missile
         var status = "\(hud.weaponLabel)  \(hud.weaponAmmo)"
         if showMissiles { status += DLoc.text("   ·   导弹  \(hud.missileAmmo)", "   ·   Missiles  \(hud.missileAmmo)") }
         status += DLoc.text("   ·   防御  \(Int((hud.health*100).rounded()))%", "   ·   Defense  \(Int((hud.health*100).rounded()))%")

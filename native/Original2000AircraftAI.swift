@@ -34,6 +34,7 @@ final class Original2000AircraftAI {
         var pitchSpring:Double=0,pitchTarget:Double=0,verticalSpeed:Double=0,verticalAcceleration:Double=0,fallSpeed:Double=0
         var rotorDegreesPerTick:Double=55,rollIncrementDegrees:Double=0
         var terrainLift = 0.0
+        var isDying: Bool { visible && state >= (kind == .jet ? 14 : kind == .cobra ? 13 : 6) }
         var objectID:Int {(kind == .jet ? 76:kind == .bomber ? 73:88)+slot}
     }
     struct Shot:Equatable {
@@ -105,13 +106,15 @@ final class Original2000AircraftAI {
             else {p.speed=140;p.acceleration=0;p.hp=8;p.bombs=12;p.rotorDegreesPerTick=55}
         }
     }
+    var hasPendingDeaths: Bool { jets.contains(where: \.isDying) || cobras.contains(where: \.isDying) || bombers.contains(where: \.isDying) }
+
     func tick(terrainHeight:(Double,Double)->Double,random:()->UInt32,
               hoverPhasesDegrees:SIMD4<Double>?=nil,smokeEveryTwoTicks:Bool?=nil,smokeEveryFourTicks:Bool?=nil,
-              onCrashVisual:CrashVisualHandler?=nil)->[Event] {
+              deathsOnly:Bool=false,onCrashVisual:CrashVisualHandler?=nil)->[Event] {
         var events:[Event]=[]
         let smoke2=smokeEveryTwoTicks ?? (ticks%2==0),smoke4=smokeEveryFourTicks ?? (ticks%4==0)
         let phases=hoverPhasesDegrees ?? SIMD4(4.1,6,9.5,12.2)*Double(ticks)
-        for i in jets.indices where jets[i].visible {
+        for i in jets.indices where jets[i].visible && (!deathsOnly || jets[i].isDying) {
             var p=jets[i];updateJet(&p,ground:terrainHeight,random:random,smokeTick:smoke2,events:&events,onCrashVisual:onCrashVisual)
             fixedWingPhysics(&p,roll:30)
             if p.state==1&&(abs(p.position.x)>25000||abs(p.position.z)>25000) {
@@ -125,7 +128,7 @@ final class Original2000AircraftAI {
             }
             jets[i]=p
         }
-        for i in bombers.indices where bombers[i].visible {
+        for i in bombers.indices where bombers[i].visible && (!deathsOnly || bombers[i].isDying) {
             var p=bombers[i];updateBomber(&p,ground:terrainHeight,random:random,smokeTick:smoke2,events:&events,onCrashVisual:onCrashVisual)
             fixedWingPhysics(&p,roll:35)
             if p.state==1&&(abs(p.position.x)>30000||abs(p.position.z)>30000) {
@@ -136,7 +139,7 @@ final class Original2000AircraftAI {
             }
             bombers[i]=p
         }
-        for i in cobras.indices where cobras[i].visible {
+        for i in cobras.indices where cobras[i].visible && (!deathsOnly || cobras[i].isDying) {
             var p=cobras[i];updateCobra(&p,ground:terrainHeight,random:random,smokeTick:smoke4,events:&events,onCrashVisual:onCrashVisual)
             cobraPhysics(&p,phases:phases)
             if p.state < 13, let helicopterAltitude {

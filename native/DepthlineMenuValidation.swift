@@ -453,7 +453,31 @@ extension AppDelegate {
             try menuCheck(heading.stringValue == title && !view.mouseCapture.isCaptured, "Wrong result or mouse still captured for " + title)
             try menuCheck(visible(view, "gameplay-pause").isEmpty && visible(view, "gameplay-capture-prompt").isEmpty,
                           "An unrelated overlay covered the result")
-            for id in ["victory-next", "victory-launcher"] { _ = try hittableButton(view, id) }
+            for id in ["victory-sector", "victory-title"] {
+                guard let label = visible(view, id).first as? NSTextField else { throw validationError("Missing result label " + id) }
+                let center = NSPoint(x: label.bounds.midX, y: label.bounds.midY)
+                try menuCheck(!label.isSelectable && !label.isEditable
+                              && view.hitTest(label.convert(center, to: view.superview)) === overlay,
+                              "The result label accepts mouse selection: " + id)
+                for type in [NSEvent.EventType.leftMouseDown, .leftMouseUp] {
+                    guard let event = NSEvent.mouseEvent(with: type, location: label.convert(center, to: nil),
+                                                         modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
+                                                         windowNumber: window.windowNumber, context: nil, eventNumber: 0,
+                                                         clickCount: 2, pressure: type == .leftMouseDown ? 1 : 0) else {
+                        throw validationError("Cannot create a result-card double click")
+                    }
+                    window.sendEvent(event)
+                }
+                try menuCheck(label.currentEditor() == nil && !(window.firstResponder is NSTextView)
+                              && live.isShowingVictoryChoice && !live.shooting, "Double-clicking result text changed the game or selected text")
+            }
+            for control in overlay.subviews.compactMap({ $0 as? NSButton }) where !control.isHidden {
+                try menuCheck(control.cell?.isEditable == false && control.cell?.isSelectable == false
+                              && control.currentEditor() == nil, "Result button title permits text selection")
+            }
+            _ = try hittableButton(view, "victory-launcher")
+            if live.didCompleteCampaign { try menuCheck(visible(view, "victory-next").isEmpty, "Final mission offered a next level") }
+            else { _ = try hittableButton(view, "victory-next") }
             let tick = live.logicalTick, elapsed = live.elapsed, weapons = live.weapons, score = live.combat.score
             let record = try gameRecords()
             view.keyDown(with: try key(49, chars: " "))
@@ -462,7 +486,7 @@ extension AppDelegate {
             // Advance the production frame clock beyond the old automatic transition timeout.
             for _ in 0..<40 { live.previousTime -= 0.15; live.tick() }
             try menuCheck(live.logicalTick == tick && live.elapsed == elapsed && live.weapons == weapons &&
-                          live.combat.score == score && !view.mouseCapture.isCaptured && !visible(view, "victory-next").isEmpty,
+                          live.combat.score == score && !view.mouseCapture.isCaptured && !visible(view, "victory-launcher").isEmpty,
                           "Battle input, clocks or scores advanced while waiting for a victory choice")
             try menuCheck(try gameRecords().isEqual(record), "Waiting on victory wrote another checkpoint or score")
             if let screenshot { try battleShot(live, overlay: overlay, name: screenshot) }
@@ -507,18 +531,22 @@ extension AppDelegate {
             live.restart(level: finalDay - 1, score: 101)
             try winCurrentMission(live)
             try checkProgress(completedBefore.union([id]))
-            try checkVictoryMenu(live, title: "第 \(finalDay) 关完成")
+            try checkVictoryMenu(live, title: "战区通关")
             let finalScore = live.combat.score
+            let finalRun = live.runID
+            try menuCheck(live.didCompleteCampaign && live.finished && live.pendingNextLevel == nil, "Campaign did not end")
             try click(live.view, "victory-launcher")
             let selection = try currentMenu()
             try menuCheck(selection.selectedGameID == id && !live.view.mouseCapture.isCaptured, "Returning did not select the cleared sector")
-            let saved = CampaignStore(directory: store.directory).checkpoint(for: id)
-            try menuCheck(saved?.level == finalDay + 1 && saved?.score == finalScore, "Returning discarded the next mission")
-            try click(selection, "continue-game")
+            let reopened = CampaignStore(directory: store.directory)
+            let result = reopened.highScores(for: id).first { $0.id == finalRun }
+            try menuCheck(reopened.checkpoint(for: id) == nil && result?.score == finalScore && result?.level == finalDay,
+                          "Final score was lost or an out-of-range checkpoint survived")
+            try click(selection, "start-game")
             guard let replay = game else { throw validationError("Could not reopen cleared sector") }
             replay.timer?.invalidate()
-            try menuCheck(replay.campaign?.level == finalDay + 1 && replay.combat.score == finalScore &&
-                          visible(replay.view, "gameplay-victory").isEmpty, "Continue from the launcher did not resume the saved next mission")
+            try menuCheck(replay.campaign?.level == 1 && replay.combat.score == 0 &&
+                          visible(replay.view, "gameplay-victory").isEmpty, "A new campaign must start at mission one")
             try checkProgress(completedBefore.union([id]))
             try leave(replay)
         }
@@ -604,8 +632,8 @@ extension AppDelegate {
             try click(selection, "continue-game")
             guard let live = game else { throw validationError("Missing battle for command checks") }
             live.timer?.invalidate()
-            // The fifth hills map issues flares. The coast map has ordinary daylight ammunition.
-            let start = id == "2002" ? 5 : 1
+            // Hills mission 11 is the first night defence in the restored campaign.
+            let start = id == "2002" ? 11 : 1
             live.restart(level: start - 1)
             let view = live.view
             func settingsPage() throws -> LauncherView {
@@ -659,7 +687,7 @@ extension AppDelegate {
             if id == "2000" { try shot(page, "本关秘籍设置") }
             let ammo = live.weapons.ammo
             let full: OriginalAmmo = id == "2002" ? .init(machineGun: 500, cannon: 20, missile: 20, handgun: 15, flare: 20)
-                                                  : .init(machineGun: 300, cannon: 8, missile: 3, handgun: 15, flare: 0)
+                                                  : .init(machineGun: 150, cannon: 8, missile: 3, handgun: 15, flare: 0)
             try menuCheck(ammo == full &&
                           live.weapons.supportAvailable == support && ammoFeedback != unsupported, "Ammo refill missed an equipped weapon or changed support")
             _ = try submit(page, "FuLlHeAlTh", enter: true)
@@ -699,7 +727,7 @@ extension AppDelegate {
             "languageSettings": ["system resolves the first preferred supported language, or English for unsupported locales",
                                  "native dropdown opens with English first and system selected", "manual overrides survive reopening",
                                  "English launcher at minimum size", "additional languages in live pause settings, command descriptions and variable mission titles"],
-            "victoryChoices": ["both buttons clickable in coast, hills and training", "waiting freezes simulation and score",
+            "victoryChoices": ["both buttons clickable in coast, hills and training", "double-clicking result labels cannot select text or activate a choice", "waiting freezes simulation and score",
                                "next mission resumes battle control", "return to launcher preserves next mission and score",
                                "final flag awarded before choice", "training continues into saved coast mission"],
             "pauseCommandsChecked": ["battle-only controls and help", "button and Return submissions", "unknown command feedback",
@@ -724,6 +752,69 @@ private func validationError(_ message: String) -> NSError {
     NSError(domain: "DepthlineMenuValidation", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
 }
 
+/// Three captures of one simulation tick isolate the ring and the glyph from
+/// scenery, the HUD sight and the support effects behind them.
+private func checkSupportMarker(marked: Data, ringOnly: Data, plain: Data, name: String,
+                                beforeCall: Bool) throws -> Set<Int> {
+    let frames = [marked, ringOnly, plain].compactMap { NSBitmapImageRep(data: $0) }
+    guard frames.count == 3, let first = frames.first,
+          frames.allSatisfy({ $0.pixelsWide == first.pixelsWide && $0.pixelsHigh == first.pixelsHigh &&
+                              !$0.isPlanar && $0.bitsPerSample == 8 && $0.samplesPerPixel == 4 &&
+                              !$0.bitmapFormat.contains(.alphaFirst) && $0.bitmapData != nil }) else {
+        throw validationError("Could not read marker screenshots for " + name)
+    }
+    var ring = [CGPoint](), glyph = [CGPoint]()
+    for y in 0..<first.pixelsHigh {
+        let rows = frames.map { $0.bitmapData!.advanced(by: y * $0.bytesPerRow) }
+        let (full, circle, background) = (rows[0], rows[1], rows[2])
+        for x in 0..<first.pixelsWide {
+            let i = 4 * x
+            let red = Int(circle[i]), excess = red - max(Int(circle[i+1]), Int(circle[i+2]))
+            if red >= 135 && excess >= 50 &&
+                excess - (Int(background[i]) - max(Int(background[i+1]), Int(background[i+2]))) >= 35 {
+                ring.append(CGPoint(x: x, y: y))
+            }
+            let difference = abs(Int(full[i]) - Int(circle[i])) + abs(Int(full[i+1]) - Int(circle[i+1])) +
+                             abs(Int(full[i+2]) - Int(circle[i+2]))
+            if difference > 110 && full[i] >= 155 && full[i+1] >= 115 && full[i+2] >= 80 {
+                glyph.append(CGPoint(x: x, y: y))
+            }
+        }
+    }
+    func bounds(_ pixels: [CGPoint]) -> CGRect {
+        pixels.reduce(CGRect.null) { $0.union(CGRect(origin: $1, size: CGSize(width: 1, height: 1))) }
+    }
+    let oval = bounds(ring)
+    try menuCheck(ring.count >= 80 && oval.width > 45 && oval.height > 12 && oval.width > 1.2 * oval.height,
+                  "Missing visible red ellipse in " + name)
+    if beforeCall {
+        var octants = Set<Int>(), curvedPixels = 0
+        for point in ring {
+            let x = (point.x - oval.midX) / (oval.width / 2), y = (point.y - oval.midY) / (oval.height / 2)
+            if (0.75...1.16).contains(hypot(x, y)) {
+                curvedPixels += 1
+                octants.insert(Int((atan2(y,x) + .pi) * 4 / .pi) % 8)
+            }
+        }
+        try menuCheck(octants.count == 8 && curvedPixels > ring.count * 3 / 4,
+                      "Red marker did not follow an elliptical arc in " + name)
+    }
+    let inside = oval.insetBy(dx: oval.width * 0.17, dy: oval.height * 0.06)
+    let centralGlyph = glyph.filter(inside.contains)
+    let symbol = bounds(centralGlyph)
+    try menuCheck(centralGlyph.count >= 32 && symbol.width >= 6 && symbol.height >= 9 &&
+                  abs(symbol.midX - oval.midX) < oval.width * 0.16 &&
+                  abs(symbol.midY - oval.midY) < oval.height * 0.25,
+                  "The support icon is missing or off-centre in " + name)
+    // Uniform scaling preserves each icon's aspect ratio for the shape comparison.
+    let scale = 19 / max(symbol.width, symbol.height)
+    return Set(centralGlyph.map { point in
+        let x = Int((point.x - symbol.midX) * scale + 10)
+        let y = Int((point.y - symbol.midY) * scale + 10)
+        return y * 20 + x
+    })
+}
+
 /// Finish a mission through the production frame loop, including any spare ticks in the same frame.
 private func winCurrentMission(_ game: Game) throws {
     guard let mission = game.campaign, let sources = game.levelDefinition?["objects"] as? [[String: Any]] else {
@@ -733,8 +824,21 @@ private func winCurrentMission(_ game: Game) throws {
         mission.resolveForce(sourceIndex: index, amount: mission.forceRemaining(sourceIndex: index))
     }
     try menuCheck(mission.remainingForce == 0, "Could not resolve all mission force")
+    // Also cover non-aircraft effects. A late incoming shell can finish flying
+    // while the display is open, but must not inflict damage after the win.
+    game.effects.emit(.groundExplosion, at: .init(0, 0, -500))
     game.previousTime -= 0.15
     game.tick()
+    try menuCheck(game.isPlayingVictoryEffects && game.victoryMenu.isHidden, "An explosion was cut off by the menu")
+    let health = game.combat.health, score = game.combat.score, seconds = mission.remainingSeconds
+    game.enemyOrdnance.spawn(.init(version: game.version, kind: .shell,
+                                   position: .init(0,800,-600), velocity: .init(0,0,200)))
+    for _ in 0..<360 where !game.isShowingVictoryChoice {
+        game.previousTime -= 0.15
+        game.tick()
+    }
+    try menuCheck(game.isShowingVictoryChoice && !game.hasPendingVictoryEffects && game.combat.health == health &&
+                  game.combat.score == score && mission.remainingSeconds == seconds, "Late effects did not finish cleanly")
 }
 
 private func exerciseTraining(_ game: Game, output: URL,
@@ -761,9 +865,84 @@ private func exerciseTraining(_ game: Game, output: URL,
                     clickCount: 1, pressure: down ? 1 : 0) else { throw validationError("Cannot construct trigger event") }
         if down { game.view.mouseDown(with: event) } else { game.view.mouseUp(with: event) }
     }
-    func screenshot(_ name: String) throws {
-        let options = try NativeCaptureOptions(arguments: ["--capture-width", "1280", "--capture-height", "800"])
-        try game.captureNativePixels(options: options).write(to: output.appendingPathComponent(name + ".png"), options: .atomic)
+    let capture = try NativeCaptureOptions(arguments: ["--capture-width", "1280", "--capture-height", "800"])
+    @discardableResult func screenshot(_ name: String) throws -> Data {
+        let data = try game.captureNativePixels(options: capture)
+        try data.write(to: output.appendingPathComponent(name + ".png"), options: .atomic)
+        return data
+    }
+    var artilleryGlyph: Set<Int>?
+    func supportShot(_ name: String) throws -> SCNNode {
+        let artillery = training.stage == .artillery
+        let expected = artillery ? "TrainingSupportArtilleryIcon" : "TrainingSupportBombingIcon"
+        let other = artillery ? "TrainingSupportBombingIcon" : "TrainingSupportArtilleryIcon"
+        guard let marker = game.scene.rootNode.childNode(withName: "TrainingSupportArea", recursively: true), !marker.isHidden,
+              let ring = marker.childNode(withName: "TrainingSupportRing", recursively: true), !ring.isHidden,
+              let icon = marker.childNode(withName: expected, recursively: true), !icon.isHidden,
+              marker.childNode(withName: other, recursively: true) == nil else {
+            throw validationError("Missing support ring or incorrect icon in " + name)
+        }
+        let center = marker.worldPosition
+        if training.availableSupport != nil {
+            let side = abs(center.z - game.camera.worldPosition.z) * 1.5
+            look(at: SCNVector3(center.x - side, center.y, center.z))
+            game.updateHUD()
+            try menuCheck(game.hud.lesson?.bearing == DLoc.text("目标在右侧  →", "Target to the right →"),
+                          "Looking away to the left did not point the trainee back to " + name)
+            look(at: SCNVector3(center.x + side, center.y, center.z))
+            game.updateHUD()
+            try menuCheck(game.hud.lesson?.bearing == DLoc.text("←  目标在左侧", "← Target to the left"),
+                          "Looking away to the right did not point the trainee back to " + name)
+        }
+        look(at: center)
+        game.updateHUD()
+        try menuCheck(game.hud.lesson?.bearing == DLoc.text("目标在准星附近", "Target near the crosshair"),
+                      "Aiming back at the ground outline did not settle the bearing in " + name)
+        SCNTransaction.flush()
+        let marked = try screenshot(name)
+        icon.isHidden = true
+        defer { marker.isHidden = false; icon.isHidden = false; SCNTransaction.flush() }
+        SCNTransaction.flush()
+        let ringOnly = try game.captureNativePixels(options: capture)
+        marker.isHidden = true
+        SCNTransaction.flush()
+        let plain = try game.captureNativePixels(options: capture)
+        let beforeCall = training.availableSupport != nil
+        let glyph = try checkSupportMarker(marked: marked, ringOnly: ringOnly, plain: plain,
+                                           name: name, beforeCall: beforeCall)
+        if beforeCall {
+            if artillery { artilleryGlyph = glyph }
+            else {
+                guard let artilleryGlyph else { throw validationError("Missing artillery icon comparison") }
+                try menuCheck(glyph.symmetricDifference(artilleryGlyph).count > glyph.union(artilleryGlyph).count / 6,
+                              "The artillery and bombing markers render the same silhouette")
+            }
+        }
+        return marker
+    }
+    func finishSupport(_ stage: DepthlineTraining.Stage, marker: SCNNode, limit: Int, groundImpactShot: String? = nil) throws -> Int {
+        var checked: Set<OriginalEffectsRenderer.Token> = []
+        var shot = groundImpactShot
+        let anchor = marker.simdWorldPosition
+        func visibleBlasts() -> [OriginalEffectsRenderer.Snapshot] {
+            game.effects.snapshots.filter { [.groundExplosion, .waterSplash, .explosion].contains($0.token.kind) }
+        }
+        for _ in 0..<limit where training.stage == stage {
+            let blasts = visibleBlasts()
+            for blast in blasts { checked.insert(blast.token) }
+            if !blasts.isEmpty {
+                try menuCheck(!marker.isHidden && marker.parent != nil && simd_distance(anchor, marker.simdWorldPosition) < 0.01,
+                              "The support marker moved or disappeared during an impact")
+            }
+            if let name = shot, blasts.contains(where: { $0.token.kind == .groundExplosion && $0.state.displayFrame >= 3 }) {
+                try menuCheck(try supportShot(name) === marker, "The bombing marker was replaced during the run")
+                shot = nil
+            }
+            tick()
+        }
+        try menuCheck(shot == nil, "No developed ground explosion was visible for the bomber lesson")
+        try menuCheck(visibleBlasts().isEmpty, "The \(stage) lesson ended before its last explosion finished")
+        return checked.count
     }
     try menuCheck(training.stage == .capture, "Training did not start at mouse capture")
     game.view.keyDown(with: try key(48, [], "\t"))
@@ -859,6 +1038,8 @@ private func exerciseTraining(_ game: Game, output: URL,
                       "Instruction panel covers the new supply at \(spot)")
     }
     try screenshot("补给教学")
+    try menuCheck(game.scene.rootNode.childNode(withName: "TrainingSupportArea", recursively: true) == nil,
+                  "The supply lesson must not reveal a support area")
     game.view.keyDown(with: try key(49, [], " "))
     look(at: chute.convertPosition(SCNVector3(0,0.55,0), to: nil))
     try trigger(down: true)
@@ -867,8 +1048,55 @@ private func exerciseTraining(_ game: Game, output: URL,
         tick()
     }
     try trigger(down: false)
-    try menuCheck(training.stage == .missile && !game.supplyMessage.isEmpty && chute.isHidden,
-                  "Collecting the supply should start the final helicopter exercise")
+    try menuCheck(training.stage == .artillery && !game.supplyMessage.isEmpty && chute.isHidden,
+                  "Collecting the supply should issue one coastal artillery call")
+    let artilleryMarker = try supportShot("海岸炮兵呼叫前")
+    // Keep the real support runs and their observation screenshots reproducible.
+    game.random = Beach2000Supply.Random(seed: 20_001_102)
+    game.view.keyDown(with: try key(11, [], "b"))
+    try menuCheck(training.availableSupport == .beach2000GroundBarrage && game.bombers.isEmpty,
+                  "The bomber key must not consume the artillery lesson")
+    game.view.keyDown(with: try key(0, [], "a"))
+    tick(25)
+    let remaining = game.barrage?.remainingTicks
+    game.view.keyDown(with: try key(0, [], "a"))
+    try menuCheck(remaining == 475 && game.barrage?.remainingTicks == remaining && training.availableSupport == nil,
+                  "A starts a single production barrage and cannot restart its approach")
+    for _ in 0..<475 where game.barrage?.impactCount == 0 { tick() }
+    try menuCheck((game.barrage?.impactCount ?? 0) > 0 && training.stage == .artillery,
+                  "Observe real artillery impacts before the lesson advances")
+    try menuCheck(game.effects.snapshots.contains(where: { [.groundExplosion, .waterSplash, .explosion].contains($0.token.kind) }),
+                  "The barrage reached the beach without a visible impact")
+    tick(3)
+    try menuCheck(try supportShot("海岸炮兵支援教学") === artilleryMarker,
+                  "The artillery outline moved after the call")
+    let shellsObserved = try finishSupport(.artillery, marker: artilleryMarker, limit: 260)
+    try menuCheck(shellsObserved == 24, "Expected 24 actual training shell impacts, saw \(shellsObserved)")
+    try menuCheck(training.stage == .bombers && training.availableSupport == .beach2002NineBomberAirstrike,
+                  "Finishing the barrage should issue a hill-sector bombing run")
+    let bombingMarker = try supportShot("丘陵轰炸机呼叫前")
+    game.view.keyDown(with: try key(0, [], "a"))
+    try menuCheck(game.barrage == nil && training.availableSupport == .beach2002NineBomberAirstrike,
+                  "The artillery key must not consume the bombing run")
+    game.view.keyDown(with: try key(11, [], "b"))
+    tick()
+    let formation = game.bombers
+    game.view.keyDown(with: try key(11, [], "b"))
+    try menuCheck(formation.count == 9 && formation.allSatisfy { $0.active } && formation[0] === game.bombers.first &&
+                  training.availableSupport == nil, "B dispatches one nine-plane formation")
+    for _ in 0..<1500 where !game.enemyOrdnance.rounds.contains(where: { $0.state.kind == .bomb }) { tick() }
+    guard let bomb = game.enemyOrdnance.rounds.first(where: { $0.state.kind == .bomb }) else {
+        throw validationError("No live bomb released from the training formation")
+    }
+    try menuCheck(bomb.state.version == .beach2002 && training.stage == .bombers, "Training bombs must use hill-sector ballistics")
+    let bombsObserved = try finishSupport(.bombers, marker: bombingMarker, limit: 1900, groundImpactShot: "丘陵轰炸机支援教学")
+    try menuCheck(bombsObserved == training.airstrikeImpacts, "Some training bomb impacts were not observed")
+    try menuCheck(training.airstrikeImpacts > 0 && training.stage == .missile && game.bombers.isEmpty &&
+                  !game.enemyOrdnance.rounds.contains(where: { $0.state.kind == .bomb }),
+                  "The missile range opens after actual bomb impacts and the strike finishes")
+    try menuCheck(game.scene.rootNode.childNode(withName: "TrainingSupportArea", recursively: true) == nil,
+                  "The completed bombing run left its target outline in the missile lesson")
+    print("PASS training support ellipses and distinct centred icons: \(shellsObserved) artillery and \(bombsObserved) bomber impacts observed")
     try checkUngraded()
     guard let firstAircraft = training.helicopter else { throw validationError("Final helicopter is absent") }
     look(at: firstAircraft.aimPoint)
@@ -921,6 +1149,10 @@ private func exerciseTraining(_ game: Game, output: URL,
         try checkUngraded()
     }
     guard let replacement = training.helicopter else { throw validationError("Missing final missile target") }
+    let recordGraduation = game.onSectorCompleted
+    var graduations = 0
+    game.onSectorCompleted = { graduations += 1; recordGraduation?() }
+    defer { game.onSectorCompleted = recordGraduation }
 
     // Aim just above the fuselage. Record the round's direction change on its
     // way to the replacement to verify the same missile guidance used in play.
@@ -942,5 +1174,19 @@ private func exerciseTraining(_ game: Game, output: URL,
     }
     try menuCheck(guided && training.stage == .complete && game.projectiles.missileCount == 0,
                   "The guided missile must destroy the helicopter before graduation")
-    return ["capture","aim","fire","switchWeapon","cannonAim","cannonFire","handgun","supply","missile","complete"]
+    try menuCheck(graduations == 1 && game.isPlayingVictoryEffects && !game.isShowingVictoryChoice &&
+                  game.victoryMenu.isHidden && !game.acceptsBattleInput && game.hasPendingVictoryEffects,
+                  "The missile hit must save graduation and leave its effects visible before the training menu")
+    let finalScore = game.combat.score
+    var effectTicks = 0
+    while game.isPlayingVictoryEffects && effectTicks < 1800 {
+        try menuCheck(game.victoryMenu.isHidden, "The training menu covered the last hit")
+        tick()
+        effectTicks += 1
+    }
+    try menuCheck(effectTicks > 0 && !game.hasPendingVictoryEffects && game.isShowingVictoryChoice &&
+                  !game.victoryMenu.isHidden && graduations == 1 && game.combat.score == finalScore &&
+                  game.pendingNextLevel == nil && !game.didCompleteCampaign && !game.resultRecorded,
+                  "Finishing the training effects must show graduation exactly once without a campaign result")
+    return ["capture","aim","fire","switchWeapon","cannonAim","cannonFire","handgun","supply","artillery","bombers","missile","complete"]
 }

@@ -97,9 +97,11 @@ final class Original2000EnemyAI {
         var direction=SIMD2<Double>.zero
         var state=1, nextState=6, counter=0, frame=0
         var apcExit: DepthlineAPCExit?
+        var positioning = DepthlineInfantryPositioning()
         var scale:Double=1
         var fireHeight:Double=0.5
         var fireYOffset:Double=0
+        var isDying: Bool { visible && ((21...24).contains(state) || isBurning) }
         var isBurning=false
         //0x406805:4497...4515: fire shifts2 units toward zero and initially
         //stands80 above the foot; states46/47 lower it,48 shrinks only height.
@@ -118,11 +120,9 @@ final class Original2000EnemyAI {
         let position:SIMD3<Double>, velocity:SIMD3<Double>
     }
     enum Event:Equatable {
-        case defenseChanged(Int)
         case forceAndScore(sourceIndex:Int, force:Int, score:Int)
-        case rifleFlash(sourceIndex:Int, soldierSlot:Int, position:SIMD3<Double>)
+        case rifleFlash(sourceIndex:Int, soldierSlot:Int, position:SIMD3<Double>, shieldDamage:Int, voice:Int?)
         case grenade(Shot)
-        case playerHurtVoice(Int)
         case soldierRemoved(sourceIndex:Int,slot:Int)
         case tankShell(VehicleShot)
         case vehicleRemoved(sourceIndex:Int,objectID:Int)
@@ -255,14 +255,19 @@ final class Original2000EnemyAI {
         return events
     }
 
+    var hasPendingDeaths: Bool {
+        helicopters.contains { $0.visible && (16...17).contains($0.state) } || soldiers.contains(where: \.isDying)
+    }
+
     func tick(terrainHeight:(Double,Double)->Double,viewPitchDegrees:Double,
               vehicleNeighbors:[Neighbor]=[],random:()->UInt32,soundEnabled:Bool=true,
               hoverPhasesDegrees:SIMD4<Double>?=nil,smokeTick:Bool?=nil,
               terrainBilinearHeight:((Double,Double)->Double)?=nil,
               betweenGroundAndHelicopters:(()->Void)?=nil,
-              betweenHelicoptersAndInfantry:(()->Void)?=nil,onCrashVisual:CrashVisualHandler?=nil)->[Event] {
+              betweenHelicoptersAndInfantry:(()->Void)?=nil,deathsOnly:Bool=false,onCrashVisual:CrashVisualHandler?=nil,
+              infantryField:DepthlineInfantryPositioning.Field?=nil)->[Event] {
         var events:[Event]=[]
-        for i in boats.indices where boats[i].visible {
+        for i in boats.indices where !deathsOnly && boats[i].visible {
             switch boats[i].state {
             case 1:
                 if boats[i].position.z<=boats[i].stopZ {boats[i].position.z += boats[i].speed}
@@ -277,18 +282,48 @@ final class Original2000EnemyAI {
             default:break
             }
         }
-        updateGroundVehicles(random:random,events:&events)
+        if !deathsOnly { updateGroundVehicles(random:random,events:&events) }
         // Original type order is boat,TANK,APC,JET,B52,COBRA,CH53,C130,infantry.
         // These hooks let the adapter interleave independent aircraft/supply
         // modules without changing the original shared-RNG update order.
         betweenGroundAndHelicopters?()
         updateHelicopters(terrainHeight:terrainHeight,random:random,events:&events,
-            phases:hoverPhasesDegrees ?? SIMD4(4.1,6,9.5,12.2)*Double(ticks),smokeTick:smokeTick ?? (ticks%4==0),onCrashVisual:onCrashVisual)
-        betweenHelicoptersAndInfantry?()
+            phases:hoverPhasesDegrees ?? SIMD4(4.1,6,9.5,12.2)*Double(ticks),smokeTick:smokeTick ?? (ticks%4==0),deathsOnly:deathsOnly,onCrashVisual:onCrashVisual)
+        if !deathsOnly { betweenHelicoptersAndInfantry?() }
         let neighbors=vehicleNeighbors+(tanks+apcs).filter(\.visible).map {Neighbor(objectID:$0.objectID,position:$0.position,speed:$0.speed,forward:$0.forward)}
-        for i in soldiers.indices where soldiers[i].visible && soldiers[i].state<60 {
+        for i in soldiers.indices where soldiers[i].visible && soldiers[i].state<60 && (!deathsOnly || soldiers[i].isDying) {
             var s=soldiers[i]
             let carrier=i<48 ? boats[i/8]:nil
+            if let field = infantryField, !s.isBurning, (5...20).contains(s.state) || (26...31).contains(s.state),
+               let order = s.positioning.order(slot: i, at: s.position,
+                    attacking: (14...20).contains(s.state) || (27...31).contains(s.state), field: field) {
+                switch order {
+                case .walk(let direction):
+                    s.state = 8; s.nextState = 8; s.direction = direction
+                    if !(0...10).contains(s.frame) { s.frame = 0 }
+                    advance(&s, step: 1, max: 10, wrap: 0)
+                    s.position.x += direction.x * 4; s.position.z += direction.y * 4
+                    s.position.y = terrainHeight(s.position.x, s.position.z)
+                    avoidVehicles(&s, neighbors: neighbors)
+                    soldiers[i] = s
+                    continue
+                case .wait:
+                    s.direction = .zero
+                    soldiers[i] = s
+                    continue
+                case .hold:
+                    s.direction = .zero
+                    if (5...13).contains(s.state) {
+                        if max(abs(s.position.x), abs(s.position.z)) < 1200 {
+                            s.state = 26; s.nextState = 26; s.frame = 0
+                        } else {
+                            // Only the prone rifle stance is available in the
+                            // original outer attack band.
+                            s.state = 18; s.frame = 47
+                        }
+                    }
+                }
+            }
             switch s.state {
             case 0:break
             case 1:
@@ -331,11 +366,11 @@ final class Original2000EnemyAI {
                     let distance=hypot(s.position.x,s.position.z)
                     let direction=distance>0 ? SIMD2(-s.position.x/distance,-s.position.z/distance):SIMD2<Double>.zero
                     let y=(state==15||state==28) ? 140.0:80.0
-                    events.append(.rifleFlash(sourceIndex:s.sourceIndex,soldierSlot:i,
-                        position:s.position+SIMD3(direction.x*20,y,direction.y*20)))
                     let roll=draw(random)
                     let hit=state==15 ? roll>28000:state==19 ? roll<4000:state==28 ? roll>24000:roll<8000
-                    if hit {events.append(.defenseChanged(-1));if soundEnabled {events.append(.playerHurtVoice(draw(random)>>12))}}
+                    let voice = hit && soundEnabled ? draw(random) >> 12 : nil
+                    events.append(.rifleFlash(sourceIndex:s.sourceIndex,soldierSlot:i,
+                        position:s.position+SIMD3(direction.x*20,y,direction.y*20), shieldDamage:hit ? 1 : 0, voice:voice))
                 }
                 if s.counter==0 {
                     if state==15 {s.state=16}else if state==19 {s.state=20}else{s.counter=(draw(random)>>10)+30}
@@ -442,6 +477,7 @@ final class Original2000EnemyAI {
             }
             soldiers[i]=s
         }
+        if deathsOnly { ticks += 1; return events }
         updateCarriedInfantry(terrainHeight:terrainHeight,events:&events)
         if let bilinear=terrainBilinearHeight {fitGroundVehicles(terrainHeight:bilinear,events:&events)}
         else {fitGroundVehicles(terrainHeight:terrainHeight,events:&events)}
@@ -581,8 +617,8 @@ final class Original2000EnemyAI {
     // vehicle contact requires bilinear heights. The adapter can pass its exact
     // source height sampler; callers needing both can use tick's separate hook.
     private func updateHelicopters(terrainHeight:(Double,Double)->Double,random:()->UInt32,
-                                   events:inout [Event],phases:SIMD4<Double>,smokeTick:Bool,onCrashVisual:CrashVisualHandler?) {
-        for i in helicopters.indices where helicopters[i].visible {
+                                   events:inout [Event],phases:SIMD4<Double>,smokeTick:Bool,deathsOnly:Bool,onCrashVisual:CrashVisualHandler?) {
+        for i in helicopters.indices where helicopters[i].visible && (!deathsOnly || (16...17).contains(helicopters[i].state)) {
             var h=helicopters[i]
             switch h.state {
             case 1:
@@ -849,6 +885,16 @@ final class Original2000EnemyAI {
 
 extension Original2000EnemyAI {
     struct TestFailure:Error,CustomStringConvertible {let description:String}
+    static func infantryPositioningFixture(slot: Int, at foot: SIMD3<Double>) -> Original2000EnemyAI {
+        var rng = OriginalEnemyAI.Random(seed: 804)
+        let ai = Original2000EnemyAI(bargeDeclarations: [], random: { rng.next() })
+        ai.soldiers[slot].visible = true
+        ai.soldiers[slot].position = foot
+        ai.soldiers[slot].state = 19
+        ai.soldiers[slot].frame = 52
+        ai.soldiers[slot].counter = 16
+        return ai
+    }
     static func runTests() throws {
         func check(_ condition:@autoclosure()->Bool,_ message:String)throws{if !condition(){throw TestFailure(description:message)}}
         var rng:UInt32=1
@@ -883,7 +929,8 @@ extension Original2000EnemyAI {
         // from the discarded prototype's fixed7-second10-damage attack timer.
         ai.soldiers[1].state=15;ai.soldiers[1].counter=16;ai.soldiers[1].direction = .zero
         let firing=ai.tick(terrainHeight:flat,viewPitchDegrees:0,random:{32767},soundEnabled:false)
-        try check(firing.contains(.defenseChanged(-1)),"State15 atcounter15 rolls>28000 for exactly1 damage")
+        try check(firing.contains { if case .rifleFlash(_, _, _, 1, nil) = $0 { return true }; return false },
+                  "State15 atcounter15 rolls>28000 for exactly1 damage")
         let carriers=Original2000EnemyAI(
             bargeDeclarations:(6..<12).map{BargeDeclaration(slot:$0,sourceIndex:300+$0,active:true)},
             vehicleDeclarations:(0..<3).map{VehicleDeclaration(kind:.tank,slot:$0,sourceIndex:400+$0,active:true)} +

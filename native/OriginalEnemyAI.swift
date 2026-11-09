@@ -196,6 +196,15 @@ final class OriginalEnemyAI {
 
     /// Separate source loops: all hulls move before avoidance, and terrain
     /// alignment follows infantry. These must not run per hull inline.
+    var isDyingAircraft: Bool {
+        guard isActive else { return false }
+        switch type {
+        case "COBRA": return (14...15).contains(state)
+        case "JET": return (15...16).contains(state)
+        case "CH53": return (13...14).contains(state)
+        default: return false
+        }
+    }
     var isGroundVehicle: Bool { type == "TANK" || type.hasPrefix("APC") }
     var hasPendingShots: Bool { !pendingFires.isEmpty }
     func finishGroundAvoidance(neighbors: [Neighbor], random: () -> UInt32) -> Update {

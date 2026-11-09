@@ -54,6 +54,8 @@ extension AppDelegate {
             if stamp >= start+10 && stamp < start+70 { counts.append(g.effects.activeCount); timerTimes.append(stamp) }
         }
         DispatchQueue.main.asyncAfter(deadline:.now()+70) { [self,meter] in
+            let wallSeconds = CACurrentMediaTime() - start
+            let simulatedSeconds = Double(g.logicalTick - initialTick) * Game.logicalStep
             g.timer?.invalidate(); g.view.delegate=nil
             let times=meter.times().filter { $0 >= start+10 && $0 < start+70 }
             guard times.count>2 else {fputs("Window profile: no visible SCNView frames\n",stderr);exit(8)}
@@ -67,9 +69,16 @@ extension AppDelegate {
             let size=drawable(g.view.layer)
             let hudMS=zip(timerTimes.dropFirst(),timerTimes).map{($0.0-$0.1)*1000}.sorted()
             guard !hudMS.isEmpty else {fputs("Window profile: HUD timer did not advance\n",stderr);exit(8)}
+            var longIntervalCounts: [String: Int] = [:]
+            for threshold in [50, 100, 250] {
+                longIntervalCounts[String(threshold)] = hudMS.filter { $0 > Double(threshold) }.count
+            }
+            let sector = g.assets.gameID == "2002" ? "Hills" : "Coast"
             let report:[String:Any]=[
                 "source":"Intervals between live SCNView didRenderScene callbacks, while the production simulation and AppKit HUD run. This measures window render cadence, not GPU completion or compositor presentation.",
-                "scene":smoke ? "Coast + deterministic smoke emitters":"Coast, campaign vessels",
+                "scene":smoke ? sector+" + deterministic smoke emitters":sector+", campaign",
+                "gameID":g.assets.gameID,"mission":g.level+1,
+                "antialiasingSamples":g.settings.antialiasingSamples,"soundEnabled":g.settings.soundEnabled,
                 "fixture":"Health replenished while measuring; no changes to the campaign save.",
                 "device":g.view.device?.name ?? "unknown","os":ProcessInfo.processInfo.operatingSystemVersionString,
                 "windowPoints":[g.view.bounds.width,g.view.bounds.height],"backingScale":window.backingScaleFactor,
@@ -77,6 +86,15 @@ extension AppDelegate {
                 "warmupSeconds":10,"requestedSeconds":60,"sampleSpanSeconds":times.last!-times.first!,
                 "hudAndSimulationTimerP50Milliseconds":hudMS[(hudMS.count-1)/2],
                 "hudAndSimulationTimerP95Milliseconds":hudMS[Int(ceil(Double(hudMS.count)*0.95))-1],
+                "hudAndSimulationTimerP99Milliseconds":hudMS[Int(ceil(Double(hudMS.count)*0.99))-1],
+                "hudAndSimulationTimerMaxMilliseconds":hudMS[hudMS.count-1],
+                "hudAndSimulationTimerIntervalsOverMilliseconds":longIntervalCounts,
+                "hudAndSimulationTimerIntervalCount":hudMS.count,
+                "totalWallSecondsIncludingWarmup":wallSeconds,
+                "totalSimulatedSecondsIncludingWarmup":simulatedSeconds,
+                "simulatedToWallTimeRatio":simulatedSeconds / wallSeconds,
+                "pausedAtEnd":g.paused,"finishedAtEnd":g.finished,
+                "victoryEffectsAtEnd":g.isPlayingVictoryEffects,"victoryChoiceAtEnd":g.isShowingVictoryChoice,
                 "controlledBurstDurationSeconds":smoke ? 4:0,"controlledBurstShots":observedShots,
                 "muzzlePulseMillisecondsSampledAtHUDUpdates":pulseMilliseconds,
                 "undamagedBurstSamplesWithHUDOverlay":unhurtOverlaySamples,

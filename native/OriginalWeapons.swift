@@ -124,6 +124,22 @@ struct OriginalWeaponState: Equatable, Codable {
                             missile: min(max(0, missileAmmo), version == .beach2002 ? 20 : Int.max),
                             handgun: 15,
                             flare: version == .beach2002 ? min(max(0, flareAmmo), 20) : 0)
+        if version == .beach2002 && ammo.machineGun == 0 { selected = .handgun }
+    }
+
+    mutating func loadMission(_ definition: [String: Any], machineGunVariant: Int) {
+        let rounds = definition["ammo"] as? [Int] ?? []
+        func amount(_ index: Int) -> Int { rounds.indices.contains(index) ? rounds[index] : 0 }
+        let flags = definition["flags"] as? [String] ?? []
+        let hasSupport = version == .beach2000
+            ? (definition["artillery"] as? Int ?? 0) != 0 : flags.contains("Bombers")
+        let unlimited = unlimitedAmmo2002
+        self = .init(version: version, machineGunAmmo: amount(0), cannonAmmo: amount(1),
+                     missileAmmo: amount(2), flareAmmo: amount(3), supportAvailable: hasSupport,
+                     machineGunVariant: machineGunVariant, phaseCounter: phaseCounter,
+                     singleShotLatched: singleShotLatched)
+        unlimitedAmmo2002 = unlimited
+        prepareMissileSlots()
     }
 
     var profile: OriginalWeaponProfile { .init(version: version) }
@@ -371,8 +387,16 @@ struct OriginalBarrageTick {
 }
 
 struct Original2000BarrageState: Equatable, Codable {
+    struct Area: Equatable, Codable {
+        let originCM, sizeCM: SIMD2<Int>
+        static let battlefield = Self(originCM: .init(-2048, -5000), sizeCM: .init(repeating: 4096))
+    }
+
+    private let impactArea: Area?
     private(set) var remainingTicks = 500
     private(set) var impactCount = 0
+
+    init(impactArea: Area? = nil) { self.impactArea = impactArea }
 
     // Values must come from the original 15-bit RNG stream if replay parity is
     // required. Particle generation also consumes RNG outside this small module.
@@ -385,8 +409,11 @@ struct Original2000BarrageState: Equatable, Codable {
         }
         impactCount += 1
         if impactCount == 24 { remainingTicks = 0 }
-        let x = Float((random15() >> 3) - 0x800)
-        let z = Float((random15() >> 3) - 5000)
+        // The original 15-bit draws select one of 4096 cells per axis. The
+        // normal battlefield has one-centimetre cells; a lesson can narrow it.
+        let area = impactArea ?? .battlefield
+        let x = Float(area.originCM.x + (random15() >> 3) * area.sizeCM.x / 4096)
+        let z = Float(area.originCM.y + (random15() >> 3) * area.sizeCM.y / 4096)
         return .init(playApproachSound: sound, impact: .init(x: x, z: z))
     }
 }
@@ -449,6 +476,8 @@ func testOriginalWeapons() throws {
         try check(ticks == [0,30,60,90], "cannon cooldown begins on shot and lasts 30 ticks")
 
         var handgun = OriginalWeaponState(version: version, machineGunAmmo: 0, cannonAmmo: 0, missileAmmo: 0)
+        try check(handgun.selected == (version == .beach2002 ? .handgun : .machineGun),
+                  "2002 missions without machine gun rounds equip the loaded handgun")
         handgun.pressHandgunKey()
         handgun.unlimitedAmmo2002 = true
         var fired = 0

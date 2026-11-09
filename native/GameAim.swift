@@ -6,10 +6,10 @@ extension Game {
     /// on a soldier, converge the shell on that point at its actual range.
     /// The round still leaves the muzzle and can hit cover or miss a moving target.
     func playerShotDirection(for action: OriginalFireAction, muzzle: SCNVector3, forward: SCNVector3) -> SCNVector3 {
+        let eye = camera.simdWorldPosition
         guard assets.isDepthline, action.weapon == .cannon, let profile = action.ballistic else {
             return supplyLead(for: action, muzzle: muzzle) ?? forward
         }
-        let eye = camera.simdWorldPosition
         let sight = OriginalProjectileSweep(kind: .ballistic(.cannon), start: SCNVector3(eye),
                                             end: SCNVector3(eye + camera.simdWorldFront * 250))
         guard let body = depthlineInfantryContact(sight) else {
@@ -20,6 +20,62 @@ extension Game {
         }
         let delta = SIMD3<Float>(sight.position(at: body.fraction)) - SIMD3<Float>(muzzle)
         guard simd_dot(delta, camera.simdWorldFront) > 0 else { return forward }
+        return SCNVector3(ballisticDirection(to: delta, profile: profile))
+    }
+
+    /// Aim at the first surface under the centre dot. When a low or offset
+    /// barrel is screened by the parapet, use the clear sight line at muzzle
+    /// depth. The resulting live round still collides with every surface ahead.
+    func machineGunLaunch(for action: OriginalFireAction, muzzle: SIMD3<Float>,
+                          barrelObstructed: Bool, profile: OriginalBallisticProfile)
+        -> (origin: SIMD3<Float>, direction: SIMD3<Float>, corrected: Bool) {
+        let eye = camera.simdWorldPosition, axis = camera.simdWorldFront
+        let range: Float = 250
+        let wall = emplacementCover?.firstHit(from: eye, to: eye + axis * range)
+        let sight = OriginalProjectileSweep(kind: .ballistic(.machineGun), start: SCNVector3(eye),
+                                            end: SCNVector3(wall?.position ?? (eye + axis * range)))
+        let actor = hitCandidates(sight).min { $0.fraction < $1.fraction }
+        let toActor = OriginalProjectileSweep(kind: sight.kind, start: sight.start, end: sight.position(at: actor?.fraction ?? 1))
+        let board = training?.targetContact(toActor)
+        let unobstructed = OriginalProjectileSweep(kind: sight.kind, start: sight.start, end: board ?? toActor.end)
+        let water = assets.waterContact
+        let terrain = OriginalProjectiles.terrainFraction(sweep: unobstructed) { x, z in
+            water?(Double(x * 100), Double(z * 100)) == true ? 0 : self.assets.height(x: x, z: z)
+        }
+        let contact = SIMD3<Float>(unobstructed.position(at: terrain ?? 1))
+        let depth = simd_dot(contact - eye, axis)
+        let hasTarget = terrain != nil || board != nil || actor != nil || wall != nil
+        let aimPoint = hasTarget ? contact : eye + axis * 80
+        let aimedAtCargo = terrain == nil && board == nil && actor?.target.map { target in
+            self.supplyNodes.values.contains { $0 === target }
+        } == true
+        func direction(from origin: SIMD3<Float>) -> SIMD3<Float> {
+            if aimedAtCargo, let lead = supplyLead(for: action, muzzle: SCNVector3(origin), sightRange: depth + 0.001) {
+                return SIMD3<Float>(lead)
+            }
+            return ballisticDirection(to: aimPoint - origin, profile: profile)
+        }
+
+        let bore = direction(from: muzzle)
+        let distance = simd_distance(muzzle, aimPoint)
+        // Only correct parallax near the emplacement. A shot aimed at the
+        // face itself should still strike it from the gun that fired.
+        let nearEnd = muzzle + bore * min(distance, 12)
+        let barrelHit = emplacementCover?.firstHit(from: muzzle, to: nearEnd)
+        let hitsWrongFace = barrelHit.map { simd_distance($0.position, aimPoint) > 0.015 } ?? false
+        let muzzleDepth = simd_dot(muzzle - eye, axis)
+        if !barrelObstructed && !hitsWrongFace && depth > muzzleDepth {
+            return (muzzle, bore, false)
+        }
+
+        // The sight query above includes terrain and units before the muzzle.
+        // Start behind that first contact even when aiming into the near wall.
+        let origin = eye + axis * max(0, min(muzzleDepth, depth - 0.05))
+        return (origin, direction(from: origin), true)
+    }
+
+    private func ballisticDirection(to delta: SIMD3<Float>, profile: OriginalBallisticProfile) -> SIMD3<Float> {
+        guard simd_length_squared(delta) > 0.000001 else { return camera.simdWorldFront }
         let speed = profile.initialSpeedPerTick * 0.01
         let gravity = profile.downwardVelocityChangePerTick * 0.01
         var aim = delta
@@ -28,7 +84,7 @@ extension Game {
             let steps = floor(time)
             aim.y = delta.y + gravity * steps * (time - (steps + 1) / 2)
         }
-        return SCNVector3(simd_normalize(aim))
+        return simd_normalize(aim)
     }
 
     var usesOffsetTwinMount: Bool {

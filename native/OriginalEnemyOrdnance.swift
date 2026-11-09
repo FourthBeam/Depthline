@@ -94,6 +94,7 @@ struct OriginalEnemyOrdnanceState {
     // overwritten by the splash loop). Empty means no such soldier exists.
     mutating func step(ground: (Double, Double) -> Double, waterAt: ((Double,Double)->Bool)? = nil,
                        eligibleInfantryPositions: [SIMD3<Double>] = [],
+                       grenadeContact: ((SIMD3<Double>, SIMD3<Double>) -> SIMD3<Double>?)? = nil,
                        onUnits:((SIMD3<Double>,SIMD3<Double>)->Bool)? = nil,
                        onPhase:((OriginalEnemyOrdnanceTick)->Void)? = nil) -> OriginalEnemyOrdnanceTick {
         let previous = position
@@ -112,7 +113,11 @@ struct OriginalEnemyOrdnanceState {
         }
         // Grenades test the bunker before terrain and have no recovered TTL.
         if kind == .grenade {
-            if nearPlayer(200) { active = false; damage = 5; impacts.append(impact(.player, position)) }
+            if let obstruction = grenadeContact?(previous, position) {
+                position = obstruction
+                active = false
+                impacts.append(impact(.ground, obstruction))
+            } else if nearPlayer(200) { active = false; damage = 5; impacts.append(impact(.player, position)) }
             else {
                 let y = ground(position.x, position.z)
                 if position.y < y { active = false; impacts.append(impact(.ground, SIMD3(position.x, y, position.z))) }

@@ -2,8 +2,7 @@ import AppKit
 import SceneKit
 import simd
 
-/// Original, presentation-only field emplacement. No extracted geometry,
-/// textures, insignia or collision data are used by these meshes/materials.
+/// Procedural field emplacement. Its hard surfaces also stop projectiles.
 enum DepthlineEnvironment {
     private struct Random {
         var state: UInt64 = 0x61c0a57
@@ -14,7 +13,8 @@ enum DepthlineEnvironment {
         mutating func range(_ a: Float, _ b: Float) -> Float { a + (b-a) * unit() }
     }
 
-    static func install(in scene: SCNScene, gameID: String, shoreline: ((Float) -> Float)? = nil, ground: (CGFloat, CGFloat) -> CGFloat) {
+    @discardableResult
+    static func install(in scene: SCNScene, gameID: String, shoreline: ((Float) -> Float)? = nil, ground: (CGFloat, CGFloat) -> CGFloat) -> DepthlineCover {
         scene.rootNode.childNode(withName: "DepthlineEnvironment", recursively: false)?.removeFromParentNode()
         let root = SCNNode(); root.name = "DepthlineEnvironment"
         let orientation: Float = gameID == "2000" ? 1 : -1
@@ -130,24 +130,34 @@ enum DepthlineEnvironment {
         for x: Float in [-3.36,-3.29] {
             metal.cylinder(from:.init(x,base+0.14,-6.2),to:.init(x+0.025,base+0.46,-6.10),radius:0.009,sides:6,color:.init(0.28,0.19,0.12))
         }
+        scene.rootNode.addChildNode(root)
+        let cover = DepthlineCover(root: root)
         if let shoreline {
-            root.addChildNode(cutbanks(shore:shoreline,ground:surface,random:&random))
+            let ledges = cutbanks(shore:shoreline,ground:surface,random:&random)
+            let node = SCNNode(geometry: ledges.geometry(material: material(style: 6, floor: 0)))
+            node.name = "DepthlineEnvironmentCutbanks"; node.castsShadow = false
+            root.addChildNode(node)
+            cover.register(ledges, as: .stone)
             addCoastDetails(shore:shoreline,ground:surface,stones:&stones,steel:&metal,grass:&grass,random:&random)
         }
-        for (name,mesh,style) in [("Concrete",concrete,0),("Sandbags",fabric,1),("Crates",crates,2),
-                                  ("Hardware",metal,3),("Aggregate",stones,4),("DuneGrass",grass,5)] {
+        let batches: [(String, NativeDetailMesh, Int, DepthlineCover.Surface?)] = [
+            ("Concrete", concrete, 0, .concrete), ("Sandbags", fabric, 1, .sandbag), ("Crates", crates, 2, .metal),
+            ("Hardware", metal, 3, .metal), ("Aggregate", stones, 4, .stone), ("DuneGrass", grass, 5, nil)
+        ]
+        for (name,mesh,style,surface) in batches {
             guard !mesh.indices.isEmpty else { continue }
             let node=SCNNode(geometry:mesh.geometry(material:material(style:style,floor:base)))
             node.name="DepthlineEnvironment"+name
             node.castsShadow=true
             root.addChildNode(node)
+            if let surface { cover.register(mesh, as: surface) }
         }
-        scene.rootNode.addChildNode(root)
+        return cover
     }
 
     /// Exposed ledges sit on the sea-facing toe of the heightfield scarp.
     /// Each slab has a dipped bedding plane, broken corners and a dark overhang.
-    private static func cutbanks(shore:(Float)->Float,ground:(Float,Float)->Float,random:inout Random)->SCNNode {
+    private static func cutbanks(shore:(Float)->Float,ground:(Float,Float)->Float,random:inout Random)->NativeDetailMesh {
         var mesh=NativeDetailMesh()
         for startX:Float in [-52,-65,-79,-89,-103,118,143] {
             let size:Float=startX < -74 ? 1.4:0.82
@@ -184,9 +194,7 @@ enum DepthlineEnvironment {
                 }
             }
         }
-        let node=SCNNode(geometry:mesh.geometry(material:material(style:6,floor:0)))
-        node.name="DepthlineEnvironmentCutbanks";node.castsShadow=false
-        return node
+        return mesh
     }
 
     private static func addCoastDetails(shore:(Float)->Float,ground:(Float,Float)->Float,
