@@ -4,13 +4,13 @@
 
 **English** · [简体中文](#chinese)
 
-**[Download Depthline v0.8.4 for Mac (.dmg)](https://github.com/FourthBeam/Depthline/releases/download/v0.8.4/Depthline-v0.8.4-macOS-arm64.dmg)** · Requires an Apple Silicon Mac running macOS 13 or later.
+**[Download Depthline v0.8.5 for Mac (.dmg)](https://github.com/FourthBeam/Depthline/releases/download/v0.8.5/Depthline-v0.8.5-macOS-arm64.dmg)** · Requires an Apple Silicon Mac running macOS 13 or later.
 
 Open the downloaded DMG, drag **Depthline.app** into **Applications**, then open the game from Applications. No build tools or compilation are needed.
 
 This build uses an ad hoc signature and hasn’t been notarized by Apple. If macOS says it can’t verify the developer on first launch, see [Apple’s guide to opening downloaded apps](https://support.apple.com/en-us/102445).
 
-Depthline is a first-person defense game for Apple Silicon Macs. Hold your ground at a fixed gun emplacement: use the machine gun against infantry, the cannon against armor, and missiles against aircraft. Watch for supply drops to replenish your ammunition. Version **0.8.4** includes three sectors—Training, Coast, and Hills—and supports 12 interface languages, including English, Simplified Chinese, and Traditional Chinese.
+Depthline is a first-person defense game for Apple Silicon Macs. Hold your ground at a fixed gun emplacement: use the machine gun against infantry, the cannon against armor, and missiles against aircraft. Watch for supply drops to replenish your ammunition. Version **0.8.5** includes three sectors—Training, Coast, and Hills—and supports 12 interface languages, including English, Simplified Chinese, and Traditional Chinese.
 
 ## Gameplay screenshots
 
@@ -78,13 +78,13 @@ The [tools directory](tools/) contains the generation scripts. The [art asset ma
 
 # 纵深防线 · Depthline
 
-**[下载《纵深防线》v0.8.4 Mac 版（DMG）](https://github.com/FourthBeam/Depthline/releases/download/v0.8.4/Depthline-v0.8.4-macOS-arm64.dmg)** · 适用于搭载 Apple 芯片、运行 macOS 13 或更高版本的 Mac。
+**[下载《纵深防线》v0.8.5 Mac 版（DMG）](https://github.com/FourthBeam/Depthline/releases/download/v0.8.5/Depthline-v0.8.5-macOS-arm64.dmg)** · 适用于搭载 Apple 芯片、运行 macOS 13 或更高版本的 Mac。
 
 打开下载的 DMG，把 **Depthline.app** 拖入「应用程序」文件夹，再从中打开游戏。无需安装开发工具或自行编译。
 
 此版本使用本机临时签名，未经 Apple 公证。如果首次打开时 macOS 提示无法验证开发者，请参阅 [Apple 的说明](https://support.apple.com/zh-cn/102445)。
 
-《纵深防线》是一款面向 Apple Silicon Mac 的第一人称定点防御游戏。你在固定炮位上守住阵地，用机枪拦截步兵、火炮压制装甲、导弹对付空中目标，并通过空投补充弹药。当前版本为 **0.8.4**，包含教学、海岸和丘陵三个战区，支持简体中文、繁体中文、英语等 12 种界面语言。
+《纵深防线》是一款面向 Apple Silicon Mac 的第一人称定点防御游戏。你在固定炮位上守住阵地，用机枪拦截步兵、火炮压制装甲、导弹对付空中目标，并通过空投补充弹药。当前版本为 **0.8.5**，包含教学、海岸和丘陵三个战区，支持简体中文、繁体中文、英语等 12 种界面语言。
 
 ## 实机画面
 

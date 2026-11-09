@@ -25,8 +25,8 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 <key>CFBundleName</key><string>Depthline</string>
 <key>CFBundleDisplayName</key><string>纵深防线</string>
 <key>CFBundleIdentifier</key><string>local.depthline.defense</string>
-<key>CFBundleVersion</key><string>0.8.4</string>
-<key>CFBundleShortVersionString</key><string>0.8.4</string>
+<key>CFBundleVersion</key><string>0.8.5</string>
+<key>CFBundleShortVersionString</key><string>0.8.5</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>CFBundleLocalizations</key><array>
 <string>en</string><string>zh-Hans</string><string>zh-Hant</string><string>ko</string><string>ja</string>
